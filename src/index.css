@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Royal Navy & Gold Theme */
+    --background: 40 30% 97%;
+    --foreground: 220 30% 15%;
+
+    --card: 40 25% 99%;
+    --card-foreground: 220 30% 15%;
+
+    --popover: 40 25% 99%;
+    --popover-foreground: 220 30% 15%;
+
+    /* Deep Navy Primary */
+    --primary: 220 45% 20%;
+    --primary-foreground: 40 30% 97%;
+
+    /* Gold Accent */
+    --secondary: 43 74% 49%;
+    --secondary-foreground: 220 30% 15%;
+
+    /* Warm Cream Muted */
+    --muted: 40 20% 93%;
+    --muted-foreground: 220 15% 45%;
+
+    /* Gold Accent */
+    --accent: 43 74% 49%;
+    --accent-foreground: 220 30% 15%;
+
+    --destructive: 0 65% 45%;
+    --destructive-foreground: 40 30% 97%;
+
+    --success: 145 60% 32%;
+    --success-foreground: 40 30% 97%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 220 30% 15%;
+
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 220 45% 20%;
+
+    --radius: 0.375rem;
+
+    /* Sidebar - Darker Navy */
+    --sidebar-background: 220 45% 15%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 43 74% 49%;
+    --sidebar-primary-foreground: 220 30% 15%;
+    --sidebar-accent: 220 40% 22%;
+    --sidebar-accent-foreground: 40 20% 95%;
+    --sidebar-border: 220 35% 25%;
+    --sidebar-ring: 43 74% 49%;
+
+    /* Custom Royal Variables */
+    --gold: 43 74% 49%;
+    --gold-light: 43 70% 60%;
+    --gold-dark: 43 80% 38%;
+    --navy: 220 45% 20%;
+    --navy-light: 220 35% 35%;
+    --navy-dark: 220 50% 12%;
+    --cream: 40 30% 97%;
+    --cream-dark: 40 20% 92%;
+  }
+
+  .dark {
+    --background: 220 45% 8%;
+    --foreground: 40 20% 95%;
+
+    --card: 220 40% 12%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 220 40% 12%;
+    --popover-foreground: 40 20% 95%;
+
+    --primary: 43 74% 49%;
+    --primary-foreground: 220 45% 8%;
+
+    --secondary: 220 35% 20%;
+    --secondary-foreground: 40 20% 95%;
+
+    --muted: 220 35% 18%;
+    --muted-foreground: 220 15% 60%;
+
+    --accent: 43 74% 49%;
+    --accent-foreground: 220 45% 8%;
+
+    --destructive: 0 65% 45%;
+    --destructive-foreground: 40 30% 97%;
+
+    --border: 220 30% 22%;
+    --input: 220 30% 22%;
+    --ring: 43 74% 49%;
+
+    --sidebar-background: 220 50% 6%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 43 74% 49%;
+    --sidebar-primary-foreground: 220 45% 8%;
+    --sidebar-accent: 220 40% 15%;
+    --sidebar-accent-foreground: 40 20% 95%;
+    --sidebar-border: 220 35% 18%;
+    --sidebar-ring: 43 74% 49%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .royal-card {
+    @apply bg-card border border-border rounded-md shadow-sm;
+  }
+
+  .royal-header {
+    @apply font-serif text-foreground tracking-tight;
+  }
+
+  .gold-accent {
+    @apply text-secondary;
+  }
+
+  .stat-card {
+    @apply royal-card p-6 transition-all duration-200 hover:shadow-md hover:border-secondary/30;
+  }
+
+  .table-header {
+    @apply bg-muted/50 text-muted-foreground font-medium text-sm uppercase tracking-wider;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors rounded-md;
+  }
+
+  .sidebar-link-active {
+    @apply bg-sidebar-accent text-sidebar-primary border-l-2 border-sidebar-primary;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+}
