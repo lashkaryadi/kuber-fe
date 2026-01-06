@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
-
+import api from '@/services/api';
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [email, setemail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,10 +18,18 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!username.trim() || !password.trim()) {
+    const res = await api.login(email, password);
+
+// 🔥 THIS LINE IS MISSING
+localStorage.setItem("token", res.token);
+
+// optional but good
+localStorage.setItem("user", JSON.stringify(res.user));
+
+    if (!email.trim() || !password.trim()) {
       toast({
         title: 'Validation Error',
-        description: 'Please enter both username and password',
+        description: 'Please enter both email and password',
         variant: 'destructive',
       });
       return;
@@ -29,7 +37,7 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const result = await login(username, password);
+    const result = await login(email, password);
 
     if (result.success) {
       toast({
@@ -57,7 +65,7 @@ export default function LoginPage() {
             <Gem className="h-8 w-8 text-secondary" />
           </div>
           <h1 className="font-serif text-3xl font-bold text-foreground tracking-tight">
-            GemStock
+            Kuber
           </h1>
           <p className="text-muted-foreground mt-2">
             Gemstone Inventory Management System
@@ -77,15 +85,15 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
-                Username
+              <Label htmlFor="email" className="text-sm font-medium">
+                email
               </Label>
               <Input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setemail(e.target.value)}
+                placeholder="Enter your email"
                 className="h-11 bg-background"
                 disabled={loading}
               />
@@ -135,9 +143,21 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <a
+                href="/signup"
+                className="font-medium text-primary hover:underline"
+              >
+                Sign up
+              </a>
+            </p>
+          </div>
+
           <div className="mt-6 pt-6 border-t border-border text-center">
             <p className="text-xs text-muted-foreground">
-              © 2025 GemStock. All rights reserved.
+              © 2025 Kuber. All rights reserved.
             </p>
           </div>
         </div>

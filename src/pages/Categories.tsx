@@ -28,17 +28,17 @@ export default function Categories() {
 
   const fetchCategories = async () => {
     setLoading(true);
-    const response = await api.getCategories();
+    try {
+  const data = await api.getCategories();
+  setCategories(data);
+} catch (err) {
+  toast({
+    title: "Error",
+    description: "Failed to fetch categories",
+    variant: "destructive",
+  });
+}
 
-    if (response.error) {
-      toast({
-        title: 'Error',
-        description: response.error,
-        variant: 'destructive',
-      });
-    } else if (response.data) {
-      setCategories(response.data);
-    }
     setLoading(false);
   };
 
@@ -62,59 +62,133 @@ export default function Categories() {
     setDeleteModalOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+//   const handleSubmit = async (e: React.FormEvent) => {
+//     e.preventDefault();
+//     setSaving(true);
 
-    const payload = {
-      name: formData.name,
-      description: formData.description || undefined,
-    };
+//     const payload = {
+//       name: formData.name,
+//       description: formData.description || undefined,
+//     };
 
-    const response = selectedCategory
-      ? await api.updateCategory(selectedCategory.id, payload)
-      : await api.createCategory(payload as Category);
+//     // const response = selectedCategory
+//     //   ? await api.updateCategory(selectedCategory.id, payload)
+//     //   : await api.createCategory(payload as Category);
 
-    if (response.error) {
+//     try {
+//   await api.createCategory(payload);
+
+//   toast({
+//     title: "Success",
+//     description: selectedCategory
+//       ? "Category updated successfully"
+//       : "Category added successfully",
+//   });
+//   setModalOpen(false);
+//   fetchCategories();
+// } catch (err: any) {
+//   toast({
+//     title: "Error",
+//     description:
+//       err?.response?.data?.message || "Failed to save category",
+//     variant: "destructive",
+//   });
+// }
+
+
+//     setSaving(false);
+//   };
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setSaving(true);
+
+  const payload = {
+    name: formData.name,
+    description: formData.description || undefined,
+  };
+
+  try {
+    if (selectedCategory) {
+      // ✅ EDIT MODE → UPDATE
+      await api.updateCategory(selectedCategory.id, payload);
+
       toast({
-        title: 'Error',
-        description: response.error,
-        variant: 'destructive',
+        title: "Success",
+        description: "Category updated successfully",
       });
     } else {
+      // ✅ ADD MODE → CREATE
+      await api.createCategory(payload);
+
       toast({
-        title: 'Success',
-        description: selectedCategory
-          ? 'Category updated successfully'
-          : 'Category added successfully',
+        title: "Success",
+        description: "Category added successfully",
       });
-      setModalOpen(false);
-      fetchCategories();
     }
 
+    setModalOpen(false);
+    setSelectedCategory(null);
+    fetchCategories();
+  } catch (err: any) {
+    toast({
+      title: "Error",
+      description:
+        err?.response?.data?.message || "Failed to save category",
+      variant: "destructive",
+    });
+  } finally {
     setSaving(false);
-  };
+  }
+};
 
-  const handleDelete = async () => {
-    if (!selectedCategory) return;
+// const handleDelete = async () => {
+//   if (!selectedCategory?.id) {
+//     toast({
+//       title: "Error",
+//       description: "Category ID missing",
+//       variant: "destructive",
+//     });
+//     return;
+//   }
 
-    const response = await api.deleteCategory(selectedCategory.id);
+//   await api.deleteCategory(selectedCategory.id);
+//   fetchCategories();
+// };
+const handleDelete = async () => {
+  if (!selectedCategory?.id) return;
 
-    if (response.error) {
-      toast({
-        title: 'Error',
-        description: response.error,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Success',
-        description: 'Category deleted successfully',
-      });
-      setDeleteModalOpen(false);
-      fetchCategories();
-    }
-  };
+  try {
+    await api.deleteCategory(selectedCategory.id);
+
+    toast({
+      title: "Deleted",
+      description: "Category deleted successfully",
+      duration: 2000,
+    });
+
+    setDeleteModalOpen(false);
+    setSelectedCategory(null);
+    fetchCategories();
+  } catch (err: any) {
+    toast({
+      title: "Error",
+      description:
+        err?.response?.data?.message || "Failed to delete category",
+      variant: "destructive",
+      duration: 3000,
+    });
+  }
+};
+
+
+const closeModal = () => {
+  setModalOpen(false);
+  setSelectedCategory(null);
+  setFormData({ name: "", description: "" });
+};
+
+
+
 
   const columns: Column<Category>[] = [
     {

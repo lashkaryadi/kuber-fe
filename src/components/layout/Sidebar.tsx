@@ -43,7 +43,7 @@ export function Sidebar() {
           <div className="flex items-center gap-2">
             <Gem className="h-7 w-7 text-sidebar-primary" />
             <span className="font-serif text-lg font-semibold text-sidebar-foreground">
-              GemStock
+              Kuber
             </span>
           </div>
         )}

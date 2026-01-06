@@ -1,11 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import api, { User } from '@/services/api';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import api, { type User } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
 
@@ -16,42 +16,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing token on mount
     const token = api.getToken();
     const storedUser = localStorage.getItem('user');
-    
+
     if (token && storedUser) {
       try {
         setUser(JSON.parse(storedUser));
       } catch {
-        api.setToken(null);
-        localStorage.removeItem('user');
+        api.logout();
       }
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const response = await api.login(username, password);
-    
-    if (response.error) {
-      return { success: false, error: response.error };
-    }
+  const login = async (email: string, password: string) => {
+    try {
+      
+      const data = await api.login(email, password);
 
-    if (response.data) {
-      api.setToken(response.data.token);
-      setUser(response.data.user);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      api.setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
       return { success: true };
+      
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.response?.data?.message || 'Login failed',
+      };
     }
-
-    return { success: false, error: 'Unknown error occurred' };
   };
+  
 
   const logout = () => {
     api.logout();
     setUser(null);
-    localStorage.removeItem('user');
   };
 
   return (
@@ -70,9 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }
