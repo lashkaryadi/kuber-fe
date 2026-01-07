@@ -1,6 +1,6 @@
-import axios from 'axios';
+import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
 /* =======================
    TYPES
@@ -23,13 +23,16 @@ export interface InventoryItem {
   weight: number;
   weightUnit: "carat" | "gram";
 
+  purchaseCode: string;
+  saleCode: string;
+
   length?: number;
   width?: number;
   height?: number;
   dimensionUnit?: "mm" | "cm" | "inch";
 
   certification?: string;
-  location: string;
+  location?: string;
 
   status: "pending" | "approved" | "sold";
 
@@ -40,10 +43,11 @@ export interface InventoryItem {
 }
 
 export interface User {
-  _id: string;
+  id: string;
   username: string;
   email: string;
-  role: 'admin' | 'staff';
+  role: "admin" | "staff";
+  createdAt: string;
 }
 
 /* =======================
@@ -57,7 +61,7 @@ const apiClient = axios.create({
    TOKEN INTERCEPTOR
 ======================== */
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -70,22 +74,22 @@ apiClient.interceptors.request.use((config) => {
 const api = {
   /* -------- TOKEN -------- */
   getToken() {
-    return localStorage.getItem('token');
+    return localStorage.getItem("token");
   },
 
   setToken(token: string | null) {
-    if (token) localStorage.setItem('token', token);
-    else localStorage.removeItem('token');
+    if (token) localStorage.setItem("token", token);
+    else localStorage.removeItem("token");
   },
 
   logout() {
     api.setToken(null);
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
   },
 
   /* -------- AUTH -------- */
   async login(email: string, password: string) {
-    const { data } = await apiClient.post('/auth/login', {
+    const { data } = await apiClient.post("/auth/login", {
       email,
       password,
     });
@@ -96,52 +100,105 @@ const api = {
     username: string;
     email: string;
     password: string;
-    role: 'admin' | 'staff';
+    role: "admin" | "staff";
   }) {
-    const { data } = await apiClient.post('/auth/register', payload);
+    const { data } = await apiClient.post("/auth/register", payload);
     return data;
   },
 
   async me() {
-    const { data } = await apiClient.get('/auth/me');
+    const { data } = await apiClient.get("/auth/me");
     return data;
   },
 
   /* -------- DASHBOARD -------- */
   async getDashboardStats() {
-    const { data } = await apiClient.get('/dashboard');
+    const { data } = await apiClient.get("/dashboard");
     return data;
   },
 
-  /* -------- USERS (ADMIN) -------- */
-  async getUsers() {
-    const { data } = await apiClient.get('/users');
-    return data;
-  },
+/* -------- USERS (ADMIN) -------- */
 
-  async createUser(payload: any) {
+// async getUsers() {
+//   try {
+//     const { data } = await apiClient.get('/users');
+//     return { success: true, data };
+//   } catch (err: any) {
+//     return {
+//       success: false,
+//       message: err?.response?.data?.message || 'Failed to fetch users',
+//     };
+//   }
+// }
+
+async getUsers() {
+  try {
+    const { data } = await apiClient.get("/users");
+
+    const users = data.map((u: any) => ({
+      id: u._id,              // ✅ MAP _id → id
+      username: u.username,
+      email: u.email,
+      role: u.role,
+      createdAt: u.createdAt,
+    }));
+
+    return { success: true, data: users };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || "Failed to fetch users",
+    };
+  }
+}
+,
+
+async createUser(payload: any) {
+  try {
     const { data } = await apiClient.post('/users', payload);
-    return data;
-  },
+    return { success: true, data };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || 'User creation failed',
+    };
+  }
+},
 
-  async updateUser(id: string, payload: any) {
+async updateUser(id: string, payload: any) {
+  try {
     const { data } = await apiClient.put(`/users/${id}`, payload);
-    return data;
-  },
+    return { success: true, data };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || 'User update failed',
+    };
+  }
+},
 
-  async deleteUser(id: string) {
+async deleteUser(id: string) {
+  try {
     await apiClient.delete(`/users/${id}`);
-    return true;
-  },
+    return { success: true };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || 'User delete failed',
+    };
+  }
+},
+
+
 
   /* -------- CATEGORIES -------- */
   async getCategories() {
-    const { data } = await apiClient.get('/categories');
+    const { data } = await apiClient.get("/categories");
     return data;
   },
 
   async createCategory(payload: { name: string; description?: string }) {
-    const { data } = await apiClient.post('/categories', payload);
+    const { data } = await apiClient.post("/categories", payload);
     return data;
   },
 
@@ -157,12 +214,12 @@ const api = {
 
   /* -------- INVENTORY -------- */
   async getInventory(params?: any) {
-    const { data } = await apiClient.get('/inventory', { params });
+    const { data } = await apiClient.get("/inventory", { params });
     return data;
   },
 
   async createInventoryItem(payload: any) {
-    const { data } = await apiClient.post('/inventory', payload);
+    const { data } = await apiClient.post("/inventory", payload);
     return data;
   },
 
@@ -178,12 +235,46 @@ const api = {
 
   /* -------- SOLD -------- */
   async getSoldItems() {
-    const { data } = await apiClient.get('/sold');
+    const { data } = await apiClient.get("/sold");
     return data;
   },
 
   async markAsSold(inventoryId: string, payload: any) {
     const { data } = await apiClient.post(`/sold/${inventoryId}`, payload);
+    return data;
+  },
+
+  //   async generateInvoice(payload: {
+  //   packagingId: string;
+  //   keptItemIds: string[];
+  // }) {
+  //   const { data } = await apiClient.post("/invoices/generate", payload);
+  //   return data;
+  // },
+
+  /* -------- PACKAGING -------- */
+  async getPackaging() {
+    const { data } = await apiClient.get("/packaging");
+    return data;
+  },
+
+  async getPackagingById(id: string) {
+    const { data } = await apiClient.get(`/packaging/${id}`);
+    return data;
+  },
+
+  /* -------- INVOICES -------- */
+  async generateInvoice(payload: {
+    packagingId: string;
+    keptItemIds: string[];
+    pricePerUnit: number;
+  }) {
+    const { data } = await apiClient.post("/invoices/generate", payload);
+    return data;
+  },
+
+  async getInvoiceById(id: string) {
+    const { data } = await apiClient.get(`/invoices/${id}`);
     return data;
   },
 };

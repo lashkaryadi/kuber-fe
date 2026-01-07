@@ -4,7 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
-import ProtectedRoute  from "@/components/auth/ProtectedRoute";
+import Packaging from "@/pages/Packaging";
+import PackagingDetails from "@/pages/PackagingDetails";
+import InvoiceView from "@/pages/InvoiceView";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -67,6 +70,10 @@ const App = () => (
               }
             />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/packaging" element={<Packaging />} />
+            <Route path="/packaging/:id" element={<PackagingDetails />} />
+            <Route path="/invoices/:id" element={<InvoiceView />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
