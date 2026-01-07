@@ -50,6 +50,24 @@ export interface User {
   createdAt: string;
 }
 
+export interface SoldItem {
+  id: string;
+  inventoryItem: {
+    id: string;
+    serialNumber: string;
+    category: {
+      id:string;
+      name: string;};
+    weight: number;
+    weightUnit: string;
+  };
+  price: number;
+  currency: string;
+  buyer?: string;
+  soldDate: string;
+  createdAt: string;
+}
+
 /* =======================
    AXIOS INSTANCE
 ======================== */
@@ -117,79 +135,75 @@ const api = {
     return data;
   },
 
-/* -------- USERS (ADMIN) -------- */
+  /* -------- USERS (ADMIN) -------- */
 
-// async getUsers() {
-//   try {
-//     const { data } = await apiClient.get('/users');
-//     return { success: true, data };
-//   } catch (err: any) {
-//     return {
-//       success: false,
-//       message: err?.response?.data?.message || 'Failed to fetch users',
-//     };
-//   }
-// }
+  // async getUsers() {
+  //   try {
+  //     const { data } = await apiClient.get('/users');
+  //     return { success: true, data };
+  //   } catch (err: any) {
+  //     return {
+  //       success: false,
+  //       message: err?.response?.data?.message || 'Failed to fetch users',
+  //     };
+  //   }
+  // }
 
-async getUsers() {
-  try {
-    const { data } = await apiClient.get("/users");
+  async getUsers() {
+    try {
+      const { data } = await apiClient.get("/users");
 
-    const users = data.map((u: any) => ({
-      id: u._id,              // ✅ MAP _id → id
-      username: u.username,
-      email: u.email,
-      role: u.role,
-      createdAt: u.createdAt,
-    }));
+      const users = data.map((u: any) => ({
+        id: u._id, // ✅ MAP _id → id
+        username: u.username,
+        email: u.email,
+        role: u.role,
+        createdAt: u.createdAt,
+      }));
 
-    return { success: true, data: users };
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err?.response?.data?.message || "Failed to fetch users",
-    };
-  }
-}
-,
+      return { success: true, data: users };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Failed to fetch users",
+      };
+    }
+  },
+  async createUser(payload: any) {
+    try {
+      const { data } = await apiClient.post("/users", payload);
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "User creation failed",
+      };
+    }
+  },
 
-async createUser(payload: any) {
-  try {
-    const { data } = await apiClient.post('/users', payload);
-    return { success: true, data };
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err?.response?.data?.message || 'User creation failed',
-    };
-  }
-},
+  async updateUser(id: string, payload: any) {
+    try {
+      const { data } = await apiClient.put(`/users/${id}`, payload);
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "User update failed",
+      };
+    }
+  },
 
-async updateUser(id: string, payload: any) {
-  try {
-    const { data } = await apiClient.put(`/users/${id}`, payload);
-    return { success: true, data };
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err?.response?.data?.message || 'User update failed',
-    };
-  }
-},
-
-async deleteUser(id: string) {
-  try {
-    await apiClient.delete(`/users/${id}`);
-    return { success: true };
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err?.response?.data?.message || 'User delete failed',
-    };
-  }
-},
-
-
+  async deleteUser(id: string) {
+    try {
+      await apiClient.delete(`/users/${id}`);
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "User delete failed",
+      };
+    }
+  },
 
   /* -------- CATEGORIES -------- */
   async getCategories() {
@@ -233,16 +247,88 @@ async deleteUser(id: string) {
     return true;
   },
 
-  /* -------- SOLD -------- */
-  async getSoldItems() {
-    const { data } = await apiClient.get("/sold");
-    return data;
+  async getApprovedInventory() {
+    try {
+      const { data } = await apiClient.get("/inventory", {
+        params: { status: "approved" },
+      });
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message:
+          err?.response?.data?.message || "Failed to fetch approved inventory",
+      };
+    }
   },
 
-  async markAsSold(inventoryId: string, payload: any) {
-    const { data } = await apiClient.post(`/sold/${inventoryId}`, payload);
-    return data;
+  /* -------- SOLD -------- */
+  // async getSoldItems() {
+  //   const { data } = await apiClient.get("/sold");
+  //   return data;
+  // },
+  async getSoldItems() {
+    try {
+      const { data } = await apiClient.get("/sold");
+
+      return {
+        success: true,
+        data: data.data, // 👈 because backend sends { success, data }
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Failed to fetch sold items",
+      };
+    }
   },
+
+  async markAsSold(payload: {
+    inventoryId: string;
+    price: number;
+    currency: string;
+    soldDate: string;
+    buyer?: string;
+  }) {
+    try {
+      const { data } = await apiClient.post("/sold", payload);
+
+      return {
+        success: true,
+        data,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message:
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to mark item as sold",
+      };
+    }
+  },
+
+  // async markAsSold(inventoryId: string, payload: ¯¸any) {
+  //   const { data } = await apiClient.post(`/sold/${inventoryId}`, payload);
+  //   return data;
+  // },
+  // async markAsSold(payload: {
+  //   inventoryId: string;
+  //   price: number;
+  //   currency: string;
+  //   soldDate: string;
+  //   buyer?: string;
+  // }) {
+  //   try {
+  //     const { data } = await apiClient.post("/sold", payload);
+  //     return { success: true, data };
+  //   } catch (err: any) {
+  //     return {
+  //       success: false,
+  //       message: err?.response?.data?.message || "Failed to mark item as sold",
+  //     };
+  //   }
+  // },
 
   //   async generateInvoice(payload: {
   //   packagingId: string;
