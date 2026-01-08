@@ -410,6 +410,11 @@ async updateSold(
   },
 
   /* -------- INVOICES -------- */
+
+  async getInvoiceBySold(soldId: string) {
+  const { data } = await apiClient.get(`/invoices/sold/${soldId}`);
+  return data;
+},
   async generateInvoice(payload: {
     packagingId: string;
     keptItemIds: string[];

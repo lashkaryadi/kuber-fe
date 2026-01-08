@@ -6,8 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Packaging from "@/pages/Packaging";
 import PackagingDetails from "@/pages/PackagingDetails";
-import InvoiceView from "@/pages/InvoiceView";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import InvoicePreview from "@/pages/InvoicePreview";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -53,6 +53,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/sold"
               element={
@@ -72,7 +73,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/packaging" element={<Packaging />} />
             <Route path="/packaging/:id" element={<PackagingDetails />} />
-            <Route path="/invoices/:id" element={<InvoiceView />} />
+            <Route path="/invoice/:soldId" element={<InvoicePreview />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

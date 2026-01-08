@@ -5,7 +5,7 @@ import { Modal } from "@/components/common/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Edit, Trash2 } from 'lucide-react';
+import { FileText, Edit, Trash2 } from "lucide-react";
 
 import {
   Select,
@@ -85,14 +85,14 @@ export default function SoldItems() {
   };
 
   const handleUndo = async (soldId: string) => {
-     if (!soldId) {
-    toast({
-      title: "Error",
-      description: "Invalid sold item",
-      variant: "destructive",
-    });
-    return;
-  }
+    if (!soldId) {
+      toast({
+        title: "Error",
+        description: "Invalid sold item",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const res = await api.undoSold(soldId);
 
@@ -373,30 +373,36 @@ export default function SoldItems() {
     {
       key: "actions",
       header: "Actions",
+
       render: (item) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => openEditModal(item)}
-          // title="Edit sale"
-          title={editMode ? "Edit Sold Item" : "Mark Item as Sold"}
-        >
-          <Edit className= " h-4 w-4"/>
-        </Button>
-      ),
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      render: (item) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => handleUndo(item.id)}
-          title="Undo Sale"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => openEditModal(item)}
+            // title="Edit sale"
+            title={editMode ? "Edit Sold Item" : "Mark Item as Sold"}
+          >
+            <Edit className=" h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleUndo(item.id)}
+            title="Undo Sale"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => window.open(`/invoice/${item.id}`, "_blank")}
+          >
+            <FileText className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ];
