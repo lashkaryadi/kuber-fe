@@ -64,8 +64,9 @@ export interface SoldItem {
     id: string;
     serialNumber: string;
     category: {
-      id:string;
-      name: string;};
+      id: string;
+      name: string;
+    };
     weight: number;
     weightUnit: string;
   };
@@ -138,18 +139,16 @@ const api = {
   },
 
   /* -------- DASHBOARD -------- */
- async getDashboardStats() {
-  try {
-    const { data } = await apiClient.get("/dashboard");
-    return { data: data.data };
-  } catch (err: any) {
-    return {
-      error:
-        err?.response?.data?.error ||
-        "Failed to fetch dashboard stats",
-    };
-  }
-},
+  async getDashboardStats() {
+    try {
+      const { data } = await apiClient.get("/dashboard");
+      return { data: data.data };
+    } catch (err: any) {
+      return {
+        error: err?.response?.data?.error || "Failed to fetch dashboard stats",
+      };
+    }
+  },
 
   /* -------- USERS (ADMIN) -------- */
 
@@ -243,43 +242,124 @@ const api = {
   },
 
   /* -------- INVENTORY -------- */
+  async bulkUpdateInventory(ids: string[], updates: any) {
+  try {
+    const { data } = await apiClient.put("/inventory/bulk-update", {
+      ids,
+      updates,
+    });
+    return { success: true, data };
+  } catch {
+    return { success: false };
+  }
+},
+  async previewInventoryExcel(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const { data } = await apiClient.post(
+      "/inventory/import/preview",
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+    return { success: true, data };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: "Preview failed",
+    };
+  }
+},
+async confirmInventoryImport(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const { data } = await apiClient.post(
+      "/inventory/import/confirm",
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return { success: true, data };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || "Import failed",
+    };
+  }
+},
+
+  async importInventoryExcel(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const { data } = await apiClient.post("/inventory/import", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Import failed",
+      };
+    }
+  },
+
+  async exportInventoryExcel() {
+    const response = await apiClient.get("/inventory/export", {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "inventory.xlsx";
+    a.click();
+  },
+
   async getInventory(params?: any) {
     const { data } = await apiClient.get("/inventory", { params });
     return data;
   },
 
- async createInventoryItem(payload: any) {
-  try {
-    const { data } = await apiClient.post("/inventory", payload);
-    return { success: true, data };
-  } catch (err: any) {
-    return {
-      success: false,
-      message:
-        err?.response?.data?.message ||
-        "Failed to create inventory item",
-      field: err?.response?.data?.field, // 👈 serialNumber
-    };
-  }
-},
+  async createInventoryItem(payload: any) {
+    try {
+      const { data } = await apiClient.post("/inventory", payload);
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message:
+          err?.response?.data?.message || "Failed to create inventory item",
+        field: err?.response?.data?.field, // 👈 serialNumber
+      };
+    }
+  },
 
- async updateInventoryItem(id: string, payload: any) {
-  try {
-    const { data } = await apiClient.put(`/inventory/${id}`, payload);
+  async updateInventoryItem(id: string, payload: any) {
+    try {
+      const { data } = await apiClient.put(`/inventory/${id}`, payload);
 
-    return {
-      success: true,
-      data,
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      message:
-        err?.response?.data?.message || "Failed to update inventory item",
-      field: err?.response?.data?.field,
-    };
-  }
-},
+      return {
+        success: true,
+        data,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message:
+          err?.response?.data?.message || "Failed to update inventory item",
+        field: err?.response?.data?.field,
+      };
+    }
+  },
 
   async deleteInventoryItem(id: string) {
     await apiClient.delete(`/inventory/${id}`);
@@ -347,65 +427,65 @@ const api = {
     }
   },
   async undoSold(soldId: string) {
-  try {
-    await apiClient.delete(`/sold/${soldId}/undo`);
-    return { success: true };
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err?.response?.data?.message || "Undo failed",
-    };
-  }
-},
+    try {
+      await apiClient.delete(`/sold/${soldId}/undo`);
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Undo failed",
+      };
+    }
+  },
 
-async updateSold(
-  soldId: string,
-  payload: { price: number; soldDate: string; buyer?: string }
-) {
-  try {
-    const { data } = await apiClient.put(`/sold/${soldId}`, payload);
-    return { success: true, data };
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err?.response?.data?.message || "Update failed",
-    };
-  }
-},
+  async updateSold(
+    soldId: string,
+    payload: { price: number; soldDate: string; buyer?: string }
+  ) {
+    try {
+      const { data } = await apiClient.put(`/sold/${soldId}`, payload);
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Update failed",
+      };
+    }
+  },
 
-// async undoSold(soldId: string) {
-//   try {
-//     await apiClient.delete(`/sold/${soldId}/undo`);
-//     return { success: true };
-//   } catch (err: any) {
-//     return {
-//       success: false,
-//       message:
-//         err?.response?.data?.message ||
-//         "Failed to undo sold item",
-//     };
-//   }
-// },
-// async updateSold(
-//   soldId: string,
-//   payload: {
-//     price: number;
-//     soldDate: string;
-//     buyer?: string;
-//   }
-// ) {
-//   try {
-//     const { data } = await apiClient.put(`/sold/${soldId}`, payload);
-//     return { success: true, data };
-//   } catch (err: any) {
-//     return {
-//       success: false,
-//       message:
-//         err?.response?.data?.message ||
-//         "Failed to update sold item",
-//     };
-//   }
-// },
+  // async undoSold(soldId: string) {
+  //   try {
+  //     await apiClient.delete(`/sold/${soldId}/undo`);
+  //     return { success: true };
+  //   } catch (err: any) {
+  //     return {
+  //       success: false,
+  //       message:
+  //         err?.response?.data?.message ||
+  //         "Failed to undo sold item",
+  //     };
+  //   }
+  // },
+  // async updateSold(
+  //   soldId: string,
+  //   payload: {
+  //     price: number;
+  //     soldDate: string;
+  //     buyer?: string;
+  //   }
+  // ) {
+  //   try {
+  //     const { data } = await apiClient.put(`/sold/${soldId}`, payload);
+  //     return { success: true, data };
+  //   } catch (err: any) {
+  //     return {
+  //       success: false,
+  //       message:
+  //         err?.response?.data?.message ||
+  //         "Failed to update sold item",
+  //     };
+  //   }
+  // },
 
   // async markAsSold(inventoryId: string, payload: ¯¸any) {
   //   const { data } = await apiClient.post(`/sold/${inventoryId}`, payload);
@@ -451,9 +531,9 @@ async updateSold(
   /* -------- INVOICES -------- */
 
   async getInvoiceBySold(soldId: string) {
-  const { data } = await apiClient.get(`/invoices/sold/${soldId}`);
-  return data;
-},
+    const { data } = await apiClient.get(`/invoices/sold/${soldId}`);
+    return data;
+  },
   async generateInvoice(payload: {
     packagingId: string;
     keptItemIds: string[];

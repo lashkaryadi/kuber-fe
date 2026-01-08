@@ -2,6 +2,8 @@ import { Bell, Search, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useSearch } from "@/contexts/SearchContext";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,9 +17,16 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 interface HeaderProps {
   title: string;
   onMenuClick?: () => void;
+  
 }
 
 export function Header({ title, onMenuClick }: HeaderProps) {
+  const { search, setSearch } = useSearch();
+
+  <Input
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+/>
   const { user, logout } = useAuth();
 
   const initials = user?.username
@@ -31,12 +40,12 @@ export function Header({ title, onMenuClick }: HeaderProps) {
     <header className="sticky top-0 z-30 h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="flex h-full items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <button
+          <Button
             onClick={onMenuClick}
             className="p-2 rounded-md hover:bg-muted lg:hidden"
           >
             <Menu className="h-5 w-5" />
-          </button>
+          </Button>
           <h1 className="font-serif text-xl font-semibold text-foreground tracking-tight">
             {title}
           </h1>
@@ -47,9 +56,12 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           <div className="hidden md:flex relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search..."
-              className="w-64 pl-9 bg-muted/50 border-border focus:bg-background"
-            />
+  placeholder="Search inventory..."
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+  className="w-80 pl-9 bg-muted/50 border-border focus:bg-background"
+/>
+
           </div>
 
           {/* Notifications */}

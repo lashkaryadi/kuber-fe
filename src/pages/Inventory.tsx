@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Plus, Search, Edit, Trash2, Eye, Filter } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DataTable, Column } from "@/components/common/DataTable";
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useSearch } from "@/contexts/SearchContext";
+import { ExcelPreviewModal } from "@/components/inventory/ExcelPreviewModal";
 import {
   Select,
   SelectContent,
@@ -20,10 +22,17 @@ import api, { InventoryItem, Category } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 
 export default function Inventory() {
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const fileRef = useRef<File | null>(null);
+
+  // const [search, setSearch] = useState("");
+  const { search } = useSearch();
+  
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,15 +77,37 @@ export default function Inventory() {
     setLoading(false);
   };
 
+  // const filteredItems = items.filter((item) => {
+  //   const q = search.toLowerCase().trim();
+
+  //   const matchesSearch =
+  //     !q ||
+  //     item.serialNumber.toLowerCase().includes(q) ||
+  //     (item.category?.name || "").toLowerCase().includes(q) ||
+  //     (item.location || "").toLowerCase().includes(q);
+
+  //   const matchesCategory =
+  //     !formData.category || item.category?.id === formData.category;
+
+  //   const matchesStatus =
+  //     statusFilter === "all" || item.status === statusFilter;
+
+  //   return matchesSearch && matchesCategory && matchesStatus;
+  // });
   const filteredItems = items.filter((item) => {
     const matchesSearch =
       item.serialNumber.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.location.toLowerCase().includes(search.toLowerCase());
+      (item.category?.name || "")
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      (item.location || "").toLowerCase().includes(search.toLowerCase());
+
     const matchesCategory =
-      categoryFilter === "all" || item.category.id === categoryFilter;
+      categoryFilter === "all" || item.category?.id === categoryFilter;
+
     const matchesStatus =
       statusFilter === "all" || item.status === statusFilter;
+
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
@@ -224,6 +255,27 @@ export default function Inventory() {
       fetchData();
     }
   };
+  const [previewRows, setPreviewRows] = useState<any[]>([]);
+  const [allRows, setAllRows] = useState<any[]>([]);
+
+  const handleExcelPreview = async (file: File) => {
+    setExcelFile(file); // 🔥 VERY IMPORTANT
+
+    const res = await api.previewInventoryExcel(file);
+
+    if (!res.success) {
+      toast({
+        title: "Preview Failed",
+        description: res.message || "Invalid Excel file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAllRows(res.data);
+    setPreviewRows(res.data.slice(0, 20));
+    setPreviewOpen(true);
+  };
 
   const columns: Column<InventoryItem>[] = [
     {
@@ -320,7 +372,7 @@ export default function Inventory() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="flex flex-1 gap-4">
-            <div className="relative flex-1 max-w-sm">
+            {/* <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search inventory..."
@@ -328,7 +380,7 @@ export default function Inventory() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
               />
-            </div>
+            </div> */}
             {/* <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="Category" />
@@ -342,7 +394,28 @@ export default function Inventory() {
                 ))}
               </SelectContent>
             </Select> */}
-            <Select
+
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    No categories found
+                  </div>
+                )}
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* <Select
               value={formData.category}
               onValueChange={(value) =>
                 setFormData({ ...formData, category: value })
@@ -353,6 +426,7 @@ export default function Inventory() {
               </SelectTrigger>
 
               <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
                 {categories.length === 0 && (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     No categories found
@@ -365,7 +439,7 @@ export default function Inventory() {
                   </SelectItem>
                 ))}
               </SelectContent>
-            </Select>
+            </Select> */}
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-36">
@@ -379,10 +453,82 @@ export default function Inventory() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={openAddModal} className="gap-2">
+          <div className="flex gap-2">
+            {/* EXPORT */}
+            <Button
+              variant="outline"
+              onClick={() => api.exportInventoryExcel()}
+            >
+              Export Excel
+            </Button>
+
+            {/* IMPORT */}
+            <label className="cursor-pointer">
+              {/* <input
+                type="file"
+                accept=".xlsx"
+                className="hidden"
+                onChange={async (e) => {
+                  if (!e.target.files?.[0]) return;
+
+                  const res = await api.importInventoryExcel(e.target.files[0]);
+
+                  if (!res.success) {
+                    toast({
+                      title: "Import Failed",
+                      description: res.message,
+                      variant: "destructive",
+                    });
+                  } else {
+                    toast({
+                      title: "Import Successful",
+                      description: `Inserted: ${res.data.inserted}, Skipped: ${res.data.skipped}`,
+                    });
+                    fetchData(); // 🔄 refresh table
+                  }
+                }}
+              /> */}
+              <input
+                type="file"
+                accept=".xlsx"
+                hidden
+                onChange={(e) => {
+                  
+                  const file = e.target.files?.[0];
+                  
+                  if (!file) return;
+
+                  fileRef.current = file;
+                  handleExcelPreview(file);
+                }}
+              />
+
+              <Button variant="secondary">Import Excel</Button>
+            </label>
+
+            {selectedIds.length > 0 && (
+              <div className="fixed bottom-4 right-4 bg-card shadow-lg p-4 rounded-lg">
+                <Button
+                  onClick={() =>
+                    api.bulkUpdateInventory(selectedIds, { status: "approved" })
+                  }
+                >
+                  Approve Selected
+                </Button>
+              </div>
+            )}
+
+            {/* ADD ITEM */}
+            <Button onClick={openAddModal} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Item
+            </Button>
+          </div>
+
+          {/* <Button onClick={openAddModal} className="gap-2">
             <Plus className="h-4 w-4" />
             Add Item
-          </Button>
+          </Button>*/}
         </div>
 
         {/* Table */}
@@ -741,6 +887,33 @@ export default function Inventory() {
           </div>
         </div>
       </Modal>
+      <ExcelPreviewModal
+        open={previewOpen}
+        rows={previewRows}
+        onClose={() => setPreviewOpen(false)}
+        onConfirm={async () => {
+          if (!fileRef.current) return;
+
+          const res = await api.confirmInventoryImport(fileRef.current);
+
+          if (!res.success) {
+            toast({
+              title: "Import Failed",
+              description: res.message,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          toast({
+            title: "Import Successful",
+            description: `Inserted: ${res.data.inserted}, Skipped: ${res.data.skipped}`,
+          });
+
+          setPreviewOpen(false);
+          fetchData();
+        }}
+      />
     </MainLayout>
   );
 }

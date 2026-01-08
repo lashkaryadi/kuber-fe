@@ -16,6 +16,7 @@ import Categories from "./pages/Categories";
 import SoldItems from "./pages/SoldItems";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
+import { SearchProvider } from "./contexts/SearchContext";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,9 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
+        {/* <SearchProvider>
+          <App />
+        </SearchProvider> */}
         <Toaster />
         <Sonner />
         <BrowserRouter>
