@@ -5,6 +5,8 @@ import { Modal } from "@/components/common/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Edit, Trash2 } from 'lucide-react';
+
 import {
   Select,
   SelectContent,
@@ -17,6 +19,9 @@ import { toast } from "@/hooks/use-toast";
 import { ShoppingCart } from "lucide-react";
 
 export default function SoldItems() {
+  const [editMode, setEditMode] = useState(false);
+  const [selectedSold, setSelectedSold] = useState<SoldItem | null>(null);
+
   const [approvedItems, setApprovedItems] = useState<InventoryItem[]>([]);
   const [soldItems, setSoldItems] = useState<SoldItem[]>([]);
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([]);
@@ -79,17 +84,51 @@ export default function SoldItems() {
     setApprovedItems(res.data);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleUndo = async (soldId: string) => {
+     if (!soldId) {
+    toast({
+      title: "Error",
+      description: "Invalid sold item",
+      variant: "destructive",
+    });
+    return;
+  }
 
-    if (!formData.inventoryId) {
+    const res = await api.undoSold(soldId);
+
+    if (!res.success) {
       toast({
-        title: "Select item",
-        description: "Please select an approved item",
+        title: "Error",
+        description: res.message,
         variant: "destructive",
       });
       return;
     }
+
+    toast({
+      title: "Success",
+      description: "Sale undone, item moved back to inventory",
+    });
+
+    fetchData(); // refresh sold + inventory
+  };
+
+  const openEditModal = (item: SoldItem) => {
+    setSelectedSold(item);
+    setEditMode(true);
+    setModalOpen(true);
+
+    setFormData({
+      inventoryId: item.inventoryItem.id, // not editable
+      price: String(item.price),
+      currency: item.currency,
+      soldDate: item.soldDate.split("T")[0],
+      buyer: item.buyer || "",
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     if (!formData.price || Number(formData.price) <= 0) {
       toast({
@@ -102,13 +141,20 @@ export default function SoldItems() {
 
     setSaving(true);
 
-    const response = await api.markAsSold({
-      inventoryId: formData.inventoryId,
-      price: Number(formData.price),
-      currency: formData.currency,
-      soldDate: formData.soldDate,
-      buyer: formData.buyer || undefined,
-    });
+    const response =
+      editMode && selectedSold
+        ? await api.updateSold(selectedSold.id, {
+            price: Number(formData.price),
+            soldDate: formData.soldDate,
+            buyer: formData.buyer || undefined,
+          })
+        : await api.markAsSold({
+            inventoryId: formData.inventoryId,
+            price: Number(formData.price),
+            currency: formData.currency,
+            soldDate: formData.soldDate,
+            buyer: formData.buyer || undefined,
+          });
 
     if (!response.success) {
       toast({
@@ -122,13 +168,66 @@ export default function SoldItems() {
 
     toast({
       title: "Success",
-      description: "Item marked as sold",
+      description: editMode ? "Sold item updated" : "Item marked as sold",
     });
 
     setModalOpen(false);
+    setEditMode(false);
+    setSelectedSold(null);
     fetchData();
     setSaving(false);
   };
+
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+
+  //   if (!formData.inventoryId) {
+  //     toast({
+  //       title: "Select item",
+  //       description: "Please select an approved item",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   if (!formData.price || Number(formData.price) <= 0) {
+  //     toast({
+  //       title: "Invalid price",
+  //       description: "Enter a valid sale price",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   setSaving(true);
+
+  //   const response = await api.markAsSold({
+  //     inventoryId: formData.inventoryId,
+  //     price: Number(formData.price),
+  //     currency: formData.currency,
+  //     soldDate: formData.soldDate,
+  //     buyer: formData.buyer || undefined,
+  //   });
+
+  //   if (!response.success) {
+  //     toast({
+  //       title: "Error",
+  //       description: response.message,
+  //       variant: "destructive",
+  //     });
+  //     setSaving(false);
+  //     return;
+  //   }
+
+  //   toast({
+  //     title: "Success",
+  //     description: "Item marked as sold",
+  //   });
+
+  //   setModalOpen(false);
+  //   fetchData();
+  //   setSaving(false);
+  // };
 
   // const handleSubmit = async (e: React.FormEvent) => {
   //   e.preventDefault();
@@ -234,49 +333,73 @@ export default function SoldItems() {
   // ];
 
   const columns: Column<SoldItem>[] = [
-  {
-    key: "serialNumber",
-    header: "Serial Number",
-    render: (item) => (
-      <span className="font-medium">
-        {item.inventoryItem.serialNumber}
-      </span>
-    ),
-  },
-  {
-    key: "category",
-    header: "Category",
-    render: (item) =>
-      item.inventoryItem.category?.name ?? "-",
-  },
-  {
-    key: "weight",
-    header: "Weight",
-    render: (item) =>
-      `${item.inventoryItem.weight} ${item.inventoryItem.weightUnit}`,
-  },
-  {
-    key: "price",
-    header: "Sale Price",
-    render: (item) => (
-      <span className="font-semibold">
-        {item.currency} {item.price.toLocaleString()}
-      </span>
-    ),
-  },
-  {
-    key: "buyer",
-    header: "Buyer",
-    render: (item) => item.buyer || "-",
-  },
-  {
-    key: "soldDate",
-    header: "Sold Date",
-    render: (item) =>
-      new Date(item.soldDate).toLocaleDateString(),
-  },
-];
-
+    {
+      key: "serialNumber",
+      header: "Serial Number",
+      render: (item) => (
+        <span className="font-medium">{item.inventoryItem.serialNumber}</span>
+      ),
+    },
+    {
+      key: "category",
+      header: "Category",
+      render: (item) => item.inventoryItem.category?.name ?? "-",
+    },
+    {
+      key: "weight",
+      header: "Weight",
+      render: (item) =>
+        `${item.inventoryItem.weight} ${item.inventoryItem.weightUnit}`,
+    },
+    {
+      key: "price",
+      header: "Sale Price",
+      render: (item) => (
+        <span className="font-semibold">
+          {item.currency} {item.price.toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      key: "buyer",
+      header: "Buyer",
+      render: (item) => item.buyer || "-",
+    },
+    {
+      key: "soldDate",
+      header: "Sold Date",
+      render: (item) => new Date(item.soldDate).toLocaleDateString(),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (item) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => openEditModal(item)}
+          // title="Edit sale"
+          title={editMode ? "Edit Sold Item" : "Mark Item as Sold"}
+        >
+          <Edit className= " h-4 w-4"/>
+        </Button>
+      ),
+    },
+    {
+      key: "actions",
+      header: "Actions",
+      render: (item) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => handleUndo(item.id)}
+          title="Undo Sale"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <MainLayout title="Sold Items">

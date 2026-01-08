@@ -307,6 +307,66 @@ const api = {
       };
     }
   },
+  async undoSold(soldId: string) {
+  try {
+    await apiClient.delete(`/sold/${soldId}/undo`);
+    return { success: true };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || "Undo failed",
+    };
+  }
+},
+
+async updateSold(
+  soldId: string,
+  payload: { price: number; soldDate: string; buyer?: string }
+) {
+  try {
+    const { data } = await apiClient.put(`/sold/${soldId}`, payload);
+    return { success: true, data };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || "Update failed",
+    };
+  }
+},
+
+// async undoSold(soldId: string) {
+//   try {
+//     await apiClient.delete(`/sold/${soldId}/undo`);
+//     return { success: true };
+//   } catch (err: any) {
+//     return {
+//       success: false,
+//       message:
+//         err?.response?.data?.message ||
+//         "Failed to undo sold item",
+//     };
+//   }
+// },
+// async updateSold(
+//   soldId: string,
+//   payload: {
+//     price: number;
+//     soldDate: string;
+//     buyer?: string;
+//   }
+// ) {
+//   try {
+//     const { data } = await apiClient.put(`/sold/${soldId}`, payload);
+//     return { success: true, data };
+//   } catch (err: any) {
+//     return {
+//       success: false,
+//       message:
+//         err?.response?.data?.message ||
+//         "Failed to update sold item",
+//     };
+//   }
+// },
 
   // async markAsSold(inventoryId: string, payload: ¯¸any) {
   //   const { data } = await apiClient.post(`/sold/${inventoryId}`, payload);
