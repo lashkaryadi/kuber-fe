@@ -175,23 +175,32 @@ export default function Inventory() {
       ? await api.updateInventoryItem(selectedItem.id, payload)
       : await api.createInventoryItem(payload as unknown as InventoryItem);
 
-    if (response.error) {
+    if (!response.success) {
       toast({
-        title: "Error",
-        description: response.error,
+        title: "Duplicate Entry",
+        description: response.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Success",
-        description: selectedItem
-          ? "Item updated successfully"
-          : "Item added successfully",
-      });
-      setModalOpen(false);
-      fetchData();
+
+      // 🔥 UX: focus serial number if duplicate
+      if (response.field === "serialNumber") {
+        document.getElementById("serialNumber")?.focus();
+      }
+
+      setSaving(false);
+      return;
     }
 
+    toast({
+      title: "Success",
+      description: selectedItem
+        ? "Item updated successfully"
+        : "Item added successfully",
+    });
+
+    setModalOpen(false); // ✅ close modal
+    setSelectedItem(null); // ✅ reset state
+    await fetchData(); // ✅ RELOAD INVENTORY LIST
     setSaving(false);
   };
 
@@ -242,15 +251,15 @@ export default function Inventory() {
       render: (item) => `${item.weight} ${item.weightUnit}`,
     },
     {
-  key: "purchaseCode",
-  header: "Purchase Code",
-  render: (item) => item.purchaseCode || "-",
-},
-{
-  key: "saleCode",
-  header: "Sale Code",
-  render: (item) => item.saleCode || "-",
-},
+      key: "purchaseCode",
+      header: "Purchase Code",
+      render: (item) => item.purchaseCode || "-",
+    },
+    {
+      key: "saleCode",
+      header: "Sale Code",
+      render: (item) => item.saleCode || "-",
+    },
 
     {
       key: "dimensions",
@@ -395,7 +404,10 @@ export default function Inventory() {
         title={selectedItem ? "Edit Item" : "Add New Item"}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 max-h-[70vh] overflow-y-auto pr-2"
+        >
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="serialNumber">Serial Number *</Label>
@@ -642,9 +654,7 @@ export default function Inventory() {
               </div>
               <div>
                 <Label className="text-muted-foreground">Pieces</Label>
-                <p className="font-medium">
-                  {selectedItem.pieces}
-                </p>
+                <p className="font-medium">{selectedItem.pieces}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Weight</Label>
@@ -653,18 +663,16 @@ export default function Inventory() {
                 </p>
               </div>
               <div>
-  <Label className="text-muted-foreground">Purchase Code</Label>
-  <p className="font-medium">
-    {selectedItem.purchaseCode || "-"}
-  </p>
-</div>
+                <Label className="text-muted-foreground">Purchase Code</Label>
+                <p className="font-medium">
+                  {selectedItem.purchaseCode || "-"}
+                </p>
+              </div>
 
-<div>
-  <Label className="text-muted-foreground">Sale Code</Label>
-  <p className="font-medium">
-    {selectedItem.saleCode || "-"}
-  </p>
-</div>
+              <div>
+                <Label className="text-muted-foreground">Sale Code</Label>
+                <p className="font-medium">{selectedItem.saleCode || "-"}</p>
+              </div>
 
               <div>
                 <Label className="text-muted-foreground">Certification</Label>

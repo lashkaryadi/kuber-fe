@@ -119,7 +119,7 @@ export default function SoldItems() {
     setModalOpen(true);
 
     setFormData({
-      inventoryId: item.inventoryItem.id, // not editable
+      inventoryId: item.inventoryItem?.id ?? "-", // not editable
       price: String(item.price),
       currency: item.currency,
       soldDate: item.soldDate.split("T")[0],
@@ -337,7 +337,7 @@ export default function SoldItems() {
       key: "serialNumber",
       header: "Serial Number",
       render: (item) => (
-        <span className="font-medium">{item.inventoryItem.serialNumber}</span>
+        <span className="font-medium">{item.inventoryItem?.serialNumber ?? "-"}</span>
       ),
     },
     {
@@ -349,7 +349,7 @@ export default function SoldItems() {
       key: "weight",
       header: "Weight",
       render: (item) =>
-        `${item.inventoryItem.weight} ${item.inventoryItem.weightUnit}`,
+        `${item.inventoryItem?.weight ?? "-"} ${item.inventoryItem?.weightUnit ?? "-"}`,
     },
     {
       key: "price",

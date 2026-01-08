@@ -41,6 +41,14 @@ export interface InventoryItem {
 
   createdAt: string;
 }
+export interface DashboardStats {
+  totalInventory: number;
+  approvedItems: number;
+  soldItems: number;
+  pendingApproval: number;
+  totalValue: number;
+  recentSales: SoldItem[];
+}
 
 export interface User {
   id: string;
@@ -130,10 +138,18 @@ const api = {
   },
 
   /* -------- DASHBOARD -------- */
-  async getDashboardStats() {
+ async getDashboardStats() {
+  try {
     const { data } = await apiClient.get("/dashboard");
-    return data;
-  },
+    return { data: data.data };
+  } catch (err: any) {
+    return {
+      error:
+        err?.response?.data?.error ||
+        "Failed to fetch dashboard stats",
+    };
+  }
+},
 
   /* -------- USERS (ADMIN) -------- */
 
@@ -232,15 +248,38 @@ const api = {
     return data;
   },
 
-  async createInventoryItem(payload: any) {
+ async createInventoryItem(payload: any) {
+  try {
     const { data } = await apiClient.post("/inventory", payload);
-    return data;
-  },
+    return { success: true, data };
+  } catch (err: any) {
+    return {
+      success: false,
+      message:
+        err?.response?.data?.message ||
+        "Failed to create inventory item",
+      field: err?.response?.data?.field, // 👈 serialNumber
+    };
+  }
+},
 
-  async updateInventoryItem(id: string, payload: any) {
+ async updateInventoryItem(id: string, payload: any) {
+  try {
     const { data } = await apiClient.put(`/inventory/${id}`, payload);
-    return data;
-  },
+
+    return {
+      success: true,
+      data,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message:
+        err?.response?.data?.message || "Failed to update inventory item",
+      field: err?.response?.data?.field,
+    };
+  }
+},
 
   async deleteInventoryItem(id: string) {
     await apiClient.delete(`/inventory/${id}`);

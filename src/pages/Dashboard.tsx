@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react';
-import { Package, CheckCircle, ShoppingCart, Clock, TrendingUp } from 'lucide-react';
-import { MainLayout } from '@/components/layout/MainLayout';
-import { StatCard } from '@/components/common/StatCard';
-import { LoadingPage } from '@/components/common/LoadingSpinner';
-import { DataTable, Column } from '@/components/common/DataTable';
-import { StatusBadge } from '@/components/common/StatusBadge';
-import api, { DashboardStats, SoldItem } from '@/services/api';
-import { toast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import {
+  Package,
+  CheckCircle,
+  ShoppingCart,
+  Clock,
+  TrendingUp,
+} from "lucide-react";
+import { MainLayout } from "@/components/layout/MainLayout";
+import { StatCard } from "@/components/common/StatCard";
+import { LoadingPage } from "@/components/common/LoadingSpinner";
+import { DataTable, Column } from "@/components/common/DataTable";
+import { StatusBadge } from "@/components/common/StatusBadge";
+import api, { DashboardStats, SoldItem } from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from "@/components/ui/card";
 
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -29,9 +35,9 @@ export default function Dashboard() {
 
     if (response.error) {
       toast({
-        title: 'Error',
+        title: "Error",
         description: response.error,
-        variant: 'destructive',
+        variant: "destructive",
       });
       // Set default stats for UI display
       setStats({
@@ -50,20 +56,22 @@ export default function Dashboard() {
 
   const recentSalesColumns: Column<SoldItem>[] = [
     {
-      key: 'serialNumber',
-      header: 'Serial Number',
+      key: "serialNumber",
+      header: "Serial Number",
       render: (item) => (
-        <span className="font-medium">{item.inventoryItem.serialNumber}</span>
+        <span className="font-medium">
+          {item.inventoryItem?.serialNumber ?? "—"}
+        </span>
       ),
     },
     {
-      key: 'category',
-      header: 'Category',
-      render: (item) => item.inventoryItem.category,
+      key: "category",
+      header: "Category",
+      render: (item) => item.inventoryItem.category?.name || "-",
     },
     {
-      key: 'price',
-      header: 'Sale Price',
+      key: "price",
+      header: "Sale Price",
       render: (item) => (
         <span className="font-medium">
           {item.currency} {item.price.toLocaleString()}
@@ -71,8 +79,8 @@ export default function Dashboard() {
       ),
     },
     {
-      key: 'soldDate',
-      header: 'Date',
+      key: "soldDate",
+      header: "Date",
       render: (item) => new Date(item.soldDate).toLocaleDateString(),
     },
   ];
@@ -131,7 +139,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-4xl font-serif font-bold text-foreground">
-              ${stats?.totalValue?.toLocaleString() || '0'}
+              ${stats?.totalValue?.toLocaleString() || "0"}
             </p>
           </CardContent>
         </Card>

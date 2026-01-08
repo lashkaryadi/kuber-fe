@@ -73,7 +73,7 @@ export function DataTable<T>({
                   >
                     {col.render
                       ? col.render(row)
-                      : (row as any)[col.key]}
+                      : (row as any)?.[col.key] ?? "-"}
                   </TableCell>
                 ))}
               </TableRow>
