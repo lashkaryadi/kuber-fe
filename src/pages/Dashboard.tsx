@@ -105,7 +105,7 @@ export default function Dashboard() {
             variant="primary"
           />
           <StatCard
-            title="Approved Items"
+            title="In Stock Items"
             value={stats?.approvedItems || 0}
             icon={CheckCircle}
             variant="success"
@@ -134,7 +134,7 @@ export default function Dashboard() {
               </CardTitle>
             </div>
             <CardDescription>
-              Combined value of all approved inventory
+              Combined value of all in-stock inventory
             </CardDescription>
           </CardHeader>
           <CardContent>

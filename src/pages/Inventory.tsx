@@ -500,7 +500,7 @@ export default function Inventory() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="approved">In Stock</SelectItem>
                 <SelectItem value="sold">Sold</SelectItem>
               </SelectContent>
             </Select>
@@ -786,7 +786,7 @@ export default function Inventory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="approved">In Stock</SelectItem>
                   <SelectItem value="sold">Sold</SelectItem>
                 </SelectContent>
               </Select>

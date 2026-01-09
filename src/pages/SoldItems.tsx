@@ -337,7 +337,9 @@ export default function SoldItems() {
       key: "serialNumber",
       header: "Serial Number",
       render: (item) => (
-        <span className="font-medium">{item.inventoryItem?.serialNumber ?? "-"}</span>
+        <span className="font-medium">
+          {item.inventoryItem?.serialNumber ?? "-"}
+        </span>
       ),
     },
     {
@@ -349,7 +351,9 @@ export default function SoldItems() {
       key: "weight",
       header: "Weight",
       render: (item) =>
-        `${item.inventoryItem?.weight ?? "-"} ${item.inventoryItem?.weightUnit ?? "-"}`,
+        `${item.inventoryItem?.weight ?? "-"} ${
+          item.inventoryItem?.weightUnit ?? "-"
+        }`,
     },
     {
       key: "price",

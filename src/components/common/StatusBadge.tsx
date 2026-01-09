@@ -14,7 +14,7 @@ const statusStyles: Record<Status, string> = {
 
 const statusLabels: Record<Status, string> = {
   pending: 'Pending',
-  approved: 'Approved',
+  approved: 'In Stock',
   sold: 'Sold',
 };
 
