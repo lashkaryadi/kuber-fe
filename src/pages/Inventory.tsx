@@ -22,7 +22,7 @@ import api, { InventoryItem, Category } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 
 export default function Inventory() {
-  const [excelFile, setExcelFile] = useState<File | null>(null);
+  // const [excelFile, setExcelFile] = useState<File | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -31,7 +31,7 @@ export default function Inventory() {
 
   // const [search, setSearch] = useState("");
   const { search } = useSearch();
-  
+
   const [previewOpen, setPreviewOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -57,6 +57,9 @@ export default function Inventory() {
     description: "",
     images: [] as string[],
   });
+  const [previewRows, setPreviewRows] = useState<ExcelPreviewRow[]>([]);
+  const [allRows, setAllRows] = useState<ExcelPreviewRow[]>([]);
+  const hasValidRows = previewRows.some((r) => r.isValid && !r.isDuplicate);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -76,40 +79,32 @@ export default function Inventory() {
 
     setLoading(false);
   };
+ const filteredItems = items.filter((item) => {
+  const q = search.trim().toLowerCase();
 
-  // const filteredItems = items.filter((item) => {
-  //   const q = search.toLowerCase().trim();
-
-  //   const matchesSearch =
-  //     !q ||
-  //     item.serialNumber.toLowerCase().includes(q) ||
-  //     (item.category?.name || "").toLowerCase().includes(q) ||
-  //     (item.location || "").toLowerCase().includes(q);
-
-  //   const matchesCategory =
-  //     !formData.category || item.category?.id === formData.category;
-
-  //   const matchesStatus =
-  //     statusFilter === "all" || item.status === statusFilter;
-
-  //   return matchesSearch && matchesCategory && matchesStatus;
-  // });
-  const filteredItems = items.filter((item) => {
-    const matchesSearch =
-      item.serialNumber.toLowerCase().includes(search.toLowerCase()) ||
-      (item.category?.name || "")
+  const matchesSearch =
+    !q ||
+    item.serialNumber.toLowerCase().includes(q) ||
+    (item.category &&
+      typeof item.category === "object" &&
+      item.category.name.toLowerCase().includes(q)) ||
+    (item.purchaseCode || "").toLowerCase().includes(q) ||
+    (item.saleCode || "").toLowerCase().includes(q) ||
+    (item.location || "").toLowerCase().includes(q) ||
+    (item.certification || "").toLowerCase().includes(q) ||
+    (item.dimensions &&
+      `${item.dimensions.length} ${item.dimensions.width} ${item.dimensions.height}`
         .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      (item.location || "").toLowerCase().includes(search.toLowerCase());
+        .includes(q));
 
-    const matchesCategory =
-      categoryFilter === "all" || item.category?.id === categoryFilter;
+  const matchesCategory =
+    categoryFilter === "all" || item.category?.id === categoryFilter;
 
-    const matchesStatus =
-      statusFilter === "all" || item.status === statusFilter;
+  const matchesStatus =
+    statusFilter === "all" || item.status === statusFilter;
 
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+  return matchesSearch && matchesCategory && matchesStatus;
+});
 
   const openAddModal = () => {
     setSelectedItem(null);
@@ -146,10 +141,11 @@ export default function Inventory() {
       weightUnit: item.weightUnit,
       purchaseCode: "",
       saleCode: "",
-      length: item.length?.toString() || "",
-      width: item.width?.toString() || "",
-      height: item.height?.toString() || "",
-      dimensionUnit: item.dimensionUnit || "mm",
+      length: item.dimensions?.length?.toString() || "",
+      width: item.dimensions?.width?.toString() || "",
+      height: item.dimensions?.height?.toString() || "",
+      dimensionUnit: item.dimensions?.unit || "mm",
+
       certification: item.certification || "",
       location: item.location,
       status: item.status,
@@ -235,38 +231,87 @@ export default function Inventory() {
     setSaving(false);
   };
 
+  // const handleDelete = async () => {
+  //   if (!selectedItem) return;
+
+  //   const response = await api.deleteInventoryItem(selectedItem.id);
+
+  //   if (response.error) {
+  //     toast({
+  //       title: "Error",
+  //       description: response.error,
+  //       variant: "destructive",
+  //     });
+  //   } else {
+  //     toast({
+  //       title: "Success",
+  //       description: "Item deleted successfully",
+  //     });
+  //     setDeleteModalOpen(false);
+  //     fetchData();
+  //   }
+  // };
   const handleDelete = async () => {
     if (!selectedItem) return;
 
-    const response = await api.deleteInventoryItem(selectedItem.id);
+    try {
+      await api.deleteInventoryItem(selectedItem.id);
 
-    if (response.error) {
-      toast({
-        title: "Error",
-        description: response.error,
-        variant: "destructive",
-      });
-    } else {
       toast({
         title: "Success",
         description: "Item deleted successfully",
       });
+
       setDeleteModalOpen(false);
       fetchData();
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err?.response?.data?.message || "Failed to delete item",
+        variant: "destructive",
+      });
     }
   };
-  const [previewRows, setPreviewRows] = useState<any[]>([]);
-  const [allRows, setAllRows] = useState<any[]>([]);
 
+  type ExcelPreviewRow = {
+    serialNumber?: string;
+    category?: string;
+    pieces?: number;
+    weight?: number;
+    purchaseCode?: string;
+    saleCode?: string;
+    status?: string;
+    isDuplicate?: boolean;
+    isValid?: boolean;
+  };
+
+  // const handleExcelPreview = async (file: File) => {
+  //   setExcelFile(file); // 🔥 VERY IMPORTANT
+
+  //   const res = await api.previewInventoryExcel(file);
+
+  //   if (!res.success) {
+  //     toast({
+  //       title: "Preview Failed",
+  //       description: res.message || "Invalid Excel file",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   setAllRows(res.data);
+  //   setPreviewRows(res.data.slice(0, 20));
+  //   setPreviewOpen(true);
+  // };
   const handleExcelPreview = async (file: File) => {
-    setExcelFile(file); // 🔥 VERY IMPORTANT
+    fileRef.current = file;
 
     const res = await api.previewInventoryExcel(file);
 
-    if (!res.success) {
+    if (!res?.success) {
       toast({
         title: "Preview Failed",
-        description: res.message || "Invalid Excel file",
+        description: res?.message || "Invalid Excel file",
         variant: "destructive",
       });
       return;
@@ -314,13 +359,20 @@ export default function Inventory() {
     },
 
     {
-      key: "dimensions",
-      header: "Dimensions",
-      render: (item) =>
-        item.length && item.width && item.height
-          ? `${item.length} x ${item.width} x ${item.height} ${item.dimensionUnit}`
-          : "-",
-    },
+  key: "dimensions",
+  header: "Dimensions",
+  render: (item) =>
+    item.dimensions?.length ? (
+      <span className="whitespace-nowrap min-w-[160px] inline-block">
+        {item.dimensions.length} x {item.dimensions.width} x{" "}
+        {item.dimensions.height} {item.dimensions.unit}
+      </span>
+    ) : (
+      "-"
+    ),
+},
+
+
     {
       key: "certification",
       header: "Certification",
@@ -463,8 +515,8 @@ export default function Inventory() {
             </Button>
 
             {/* IMPORT */}
-            <label className="cursor-pointer">
-              {/* <input
+            {/* <label className="cursor-pointer"> */}
+            {/* <input
                 type="file"
                 accept=".xlsx"
                 className="hidden"
@@ -488,23 +540,21 @@ export default function Inventory() {
                   }
                 }}
               /> */}
+            <label className="cursor-pointer">
               <input
                 type="file"
                 accept=".xlsx"
                 hidden
                 onChange={(e) => {
-                  
                   const file = e.target.files?.[0];
-                  
                   if (!file) return;
-
-                  fileRef.current = file;
                   handleExcelPreview(file);
                 }}
               />
-
               <Button variant="secondary">Import Excel</Button>
             </label>
+
+            {/* </label> */}
 
             {selectedIds.length > 0 && (
               <div className="fixed bottom-4 right-4 bg-card shadow-lg p-4 rounded-lg">
@@ -887,6 +937,7 @@ export default function Inventory() {
           </div>
         </div>
       </Modal>
+      {/* Preview Modal */}
       <ExcelPreviewModal
         open={previewOpen}
         rows={previewRows}

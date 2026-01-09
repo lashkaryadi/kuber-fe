@@ -26,10 +26,12 @@ export interface InventoryItem {
   purchaseCode: string;
   saleCode: string;
 
-  length?: number;
-  width?: number;
-  height?: number;
-  dimensionUnit?: "mm" | "cm" | "inch";
+   dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+    unit?: "mm" | "cm" | "inch";
+  };
 
   certification?: string;
   location?: string;
@@ -253,7 +255,10 @@ const api = {
     return { success: false };
   }
 },
-  async previewInventoryExcel(file: File) {
+//   
+/* -------- INVENTORY IMPORT (PREVIEW + CONFIRM) -------- */
+
+async previewInventoryExcel(file: File) {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -265,14 +270,17 @@ const api = {
         headers: { "Content-Type": "multipart/form-data" },
       }
     );
+
     return { success: true, data };
   } catch (err: any) {
     return {
       success: false,
-      message: "Preview failed",
+      message:
+        err?.response?.data?.message || "Excel preview failed",
     };
   }
 },
+
 async confirmInventoryImport(file: File) {
   const formData = new FormData();
   formData.append("file", file);
@@ -281,16 +289,22 @@ async confirmInventoryImport(file: File) {
     const { data } = await apiClient.post(
       "/inventory/import/confirm",
       formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
     );
+
     return { success: true, data };
   } catch (err: any) {
     return {
       success: false,
-      message: err?.response?.data?.message || "Import failed",
+      message:
+        err?.response?.data?.message || "Excel import failed",
     };
   }
 },
+
+
 
   async importInventoryExcel(file: File) {
     const formData = new FormData();
@@ -548,5 +562,37 @@ async confirmInventoryImport(file: File) {
     return data;
   },
 };
+
+// // PREVIEW EXCEL
+// export const previewInventoryExcel = async (file: File) => {
+//   const formData = new FormData();
+//   formData.append("file", file);
+
+//   const res = await fetch("/api/inventory/import/preview", {
+//     method: "POST",
+//     headers: {
+//       Authorization: `Bearer ${localStorage.getItem("token")}`,
+//     },
+//     body: formData,
+//   });
+
+//   return res.json();
+// };
+
+// // CONFIRM IMPORT
+// export const confirmInventoryImport = async (file: File) => {
+//   const formData = new FormData();
+//   formData.append("file", file);
+
+//   const res = await fetch("/api/inventory/import", {
+//     method: "POST",
+//     headers: {
+//       Authorization: `Bearer ${localStorage.getItem("token")}`,
+//     },
+//     body: formData,
+//   });
+
+//   return res.json();
+// };
 
 export default api;

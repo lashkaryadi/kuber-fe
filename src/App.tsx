@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SearchProvider } from "./contexts/SearchContext";
 import Packaging from "@/pages/Packaging";
 import PackagingDetails from "@/pages/PackagingDetails";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -16,7 +17,6 @@ import Categories from "./pages/Categories";
 import SoldItems from "./pages/SoldItems";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
-import { SearchProvider } from "./contexts/SearchContext";
 
 const queryClient = new QueryClient();
 
@@ -24,9 +24,8 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        {/* <SearchProvider>
-          <App />
-        </SearchProvider> */}
+        <SearchProvider>
+          
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -82,6 +81,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </SearchProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
