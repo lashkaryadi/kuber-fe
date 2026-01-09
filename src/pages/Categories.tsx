@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useSearch } from '@/contexts/SearchContext';
 import api, { Category } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
@@ -21,25 +22,27 @@ export default function Categories() {
     description: '',
   });
   const [saving, setSaving] = useState(false);
+  const { query: globalQuery } = useSearch(); // Use global search
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [globalQuery]); // Fetch when global search changes
 
   const fetchCategories = async () => {
     setLoading(true);
     try {
-  const data = await api.getCategories();
-  setCategories(data);
-} catch (err) {
-  toast({
-    title: "Error",
-    description: "Failed to fetch categories",
-    variant: "destructive",
-  });
-}
-
-    setLoading(false);
+      const data = await api.getCategories({ search: globalQuery }); // Pass search param
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch categories",
+        variant: "destructive",
+      });
+      setCategories([]); // Ensure categories is always an array
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openAddModal = () => {
@@ -241,10 +244,18 @@ const closeModal = () => {
           <p className="text-muted-foreground">
             Manage gemstone categories for your inventory
           </p>
-          <Button onClick={openAddModal} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Category
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => api.exportCategoriesExcel()}
+            >
+              Export Excel
+            </Button>
+            <Button onClick={openAddModal} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Category
+            </Button>
+          </div>
         </div>
 
         <div className="royal-card">

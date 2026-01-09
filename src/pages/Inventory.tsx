@@ -29,8 +29,12 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const fileRef = useRef<File | null>(null);
 
-  // const [search, setSearch] = useState("");
-  const { search } = useSearch();
+  const [searchText, setSearchText] = useState("");
+  const [sortKey, setSortKey] = useState<
+    "serialNumber" | "pieces" | "purchaseCode" | "saleCode" | "weight" | null
+  >(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const { query: globalQuery } = useSearch(); // Keep global search for navigation
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -69,42 +73,37 @@ export default function Inventory() {
   const fetchData = async () => {
     setLoading(true);
 
-    const [inventoryRes, categoriesRes] = await Promise.all([
-      api.getInventory(),
-      api.getCategories(),
-    ]);
+    try {
+      const [inventoryRes, categoriesRes] = await Promise.all([
+        api.getInventory({
+          search: searchText,
+          category: categoryFilter !== "all" ? categoryFilter : undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
+          sortBy: sortKey || "createdAt",
+          sortOrder: sortDir,
+        }),
+        api.getCategories(),
+      ]);
 
-    setItems(inventoryRes || []);
-    setCategories(categoriesRes || []);
-
-    setLoading(false);
+      setItems(Array.isArray(inventoryRes.items) ? inventoryRes.items : []);
+      setCategories(Array.isArray(categoriesRes) ? categoriesRes : []);
+    } catch (err) {
+      console.error("Failed to load inventory data", err);
+      setItems([]);
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
   };
- const filteredItems = items.filter((item) => {
-  const q = search.trim().toLowerCase();
 
-  const matchesSearch =
-    !q ||
-    item.serialNumber.toLowerCase().includes(q) ||
-    (item.category &&
-      typeof item.category === "object" &&
-      item.category.name.toLowerCase().includes(q)) ||
-    (item.purchaseCode || "").toLowerCase().includes(q) ||
-    (item.saleCode || "").toLowerCase().includes(q) ||
-    (item.location || "").toLowerCase().includes(q) ||
-    (item.certification || "").toLowerCase().includes(q) ||
-    (item.dimensions &&
-      `${item.dimensions.length} ${item.dimensions.width} ${item.dimensions.height}`
-        .toLowerCase()
-        .includes(q));
+  // Trigger fetch when search or filters change with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 300); // 300ms debounce
 
-  const matchesCategory =
-    categoryFilter === "all" || item.category?.id === categoryFilter;
-
-  const matchesStatus =
-    statusFilter === "all" || item.status === statusFilter;
-
-  return matchesSearch && matchesCategory && matchesStatus;
-});
+    return () => clearTimeout(timer);
+  }, [searchText, categoryFilter, statusFilter, sortKey, sortDir]);
 
   const openAddModal = () => {
     setSelectedItem(null);
@@ -325,7 +324,17 @@ export default function Inventory() {
   const columns: Column<InventoryItem>[] = [
     {
       key: "serialNumber",
-      header: "Serial Number",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("serialNumber");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Serial Number {sortKey === "serialNumber" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => (
         <span className="font-medium">{item.serialNumber}</span>
       ),
@@ -341,20 +350,64 @@ export default function Inventory() {
           : "Deleted",
     },
 
-    { key: "pieces", header: "Pieces" },
+    {
+      key: "pieces",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("pieces");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Pieces {sortKey === "pieces" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
+      render: (item) => item.pieces,
+    },
     {
       key: "weight",
-      header: "Weight",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("weight");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Weight {sortKey === "weight" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => `${item.weight} ${item.weightUnit}`,
     },
     {
       key: "purchaseCode",
-      header: "Purchase Code",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("purchaseCode");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Purchase Code {sortKey === "purchaseCode" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => item.purchaseCode || "-",
     },
     {
       key: "saleCode",
-      header: "Sale Code",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("saleCode");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Sale Code {sortKey === "saleCode" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => item.saleCode || "-",
     },
 
@@ -424,29 +477,15 @@ export default function Inventory() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="flex flex-1 gap-4">
-            {/* <div className="relative flex-1 max-w-sm">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search inventory..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
                 className="pl-9"
               />
-            </div> */}
-            {/* <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-  {cat.name}
-</SelectItem>
-                ))}
-              </SelectContent>
-            </Select> */}
-
+            </div>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="All Categories" />
@@ -454,16 +493,17 @@ export default function Inventory() {
 
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.length === 0 && (
+                {Array.isArray(categories) && categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))
+                ) : (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     No categories found
                   </div>
                 )}
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select>
 
@@ -479,17 +519,17 @@ export default function Inventory() {
 
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.length === 0 && (
+                {Array.isArray(categories) && categories.length > 0 ? (
+                  categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))
+                ) : (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     No categories found
                   </div>
                 )}
-
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select> */}
 
@@ -585,7 +625,7 @@ export default function Inventory() {
         <div className="royal-card">
           <DataTable
             columns={columns}
-            data={filteredItems}
+            data={items}
             loading={loading}
             keyExtractor={(item) => item.id}
             emptyMessage="No inventory items found"
@@ -628,11 +668,17 @@ export default function Inventory() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(categories) && categories.length > 0 ? (
+                    categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      No categories found
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>

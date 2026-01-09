@@ -36,9 +36,19 @@ export default function SoldItems() {
   });
   const [saving, setSaving] = useState(false);
 
+  // Local search and sort state for Sold Items
+  const [searchText, setSearchText] = useState("");
+  const [sortKey, setSortKey] = useState<"serialNumber" | "weight" | "price" | "buyer" | "soldDate" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Trigger fetch when search or sort changes
+  useEffect(() => {
+    fetchData();
+  }, [searchText, sortKey, sortDir]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -48,7 +58,62 @@ export default function SoldItems() {
     ]);
 
     if (soldRes.success) {
-      setSoldItems(soldRes.data);
+      // Apply local search and sort to the data
+      let filteredSold = soldRes.data.filter((item) => {
+        const q = searchText.toLowerCase();
+
+        return (
+          item.inventoryItem?.serialNumber?.toLowerCase().includes(q) ||
+          item.inventoryItem?.category?.name?.toLowerCase().includes(q) ||
+          item.inventoryItem?.weight?.toString().includes(q) ||
+          item.price?.toString().includes(q) ||
+          item.buyer?.toLowerCase().includes(q)
+        );
+      });
+
+      // Apply local sort
+      if (sortKey) {
+        filteredSold.sort((a, b) => {
+          let aVal, bVal;
+
+          switch (sortKey) {
+            case "serialNumber":
+              aVal = a.inventoryItem?.serialNumber;
+              bVal = b.inventoryItem?.serialNumber;
+              break;
+            case "weight":
+              aVal = a.inventoryItem?.weight;
+              bVal = b.inventoryItem?.weight;
+              break;
+            case "price":
+              aVal = a.price;
+              bVal = b.price;
+              break;
+            case "buyer":
+              aVal = a.buyer || "";
+              bVal = b.buyer || "";
+              break;
+            case "soldDate":
+              aVal = a.soldDate;
+              bVal = b.soldDate;
+              break;
+            default:
+              return 0;
+          }
+
+          if (aVal == null || bVal == null) return 0;
+
+          if (typeof aVal === "number" && typeof bVal === "number") {
+            return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+          }
+
+          return sortDir === "asc"
+            ? String(aVal).localeCompare(String(bVal))
+            : String(bVal).localeCompare(String(aVal));
+        });
+      }
+
+      setSoldItems(filteredSold);
     } else {
       setSoldItems([]);
     }
@@ -335,7 +400,17 @@ export default function SoldItems() {
   const columns: Column<SoldItem>[] = [
     {
       key: "serialNumber",
-      header: "Serial Number",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("serialNumber");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Serial Number {sortKey === "serialNumber" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => (
         <span className="font-medium">
           {item.inventoryItem?.serialNumber ?? "-"}
@@ -349,7 +424,17 @@ export default function SoldItems() {
     },
     {
       key: "weight",
-      header: "Weight",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("weight");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Weight {sortKey === "weight" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) =>
         `${item.inventoryItem?.weight ?? "-"} ${
           item.inventoryItem?.weightUnit ?? "-"
@@ -357,7 +442,17 @@ export default function SoldItems() {
     },
     {
       key: "price",
-      header: "Sale Price",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("price");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Sale Price {sortKey === "price" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => (
         <span className="font-semibold">
           {item.currency} {item.price.toLocaleString()}
@@ -366,12 +461,32 @@ export default function SoldItems() {
     },
     {
       key: "buyer",
-      header: "Buyer",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("buyer");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Buyer {sortKey === "buyer" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => item.buyer || "-",
     },
     {
       key: "soldDate",
-      header: "Sold Date",
+      header: (
+        <button
+          onClick={() => {
+            setSortKey("soldDate");
+            setSortDir(sortDir === "asc" ? "desc" : "asc");
+          }}
+          className="flex items-center gap-1"
+        >
+          Sold Date {sortKey === "soldDate" && (sortDir === "asc" ? "↑" : "↓")}
+        </button>
+      ),
       render: (item) => new Date(item.soldDate).toLocaleDateString(),
     },
     {
@@ -395,9 +510,12 @@ export default function SoldItems() {
             size="icon"
             onClick={() => handleUndo(item.id)}
             title="Undo Sale"
+                        className="h-10 w-10 text-destructive hover:text-destructive"
+
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          
 
           <Button
             variant="ghost"
@@ -414,14 +532,30 @@ export default function SoldItems() {
   return (
     <MainLayout title="Sold Items">
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <p className="text-muted-foreground">
             Track sold items and sales history
           </p>
-          <Button onClick={openMarkSoldModal} className="gap-2">
-            <ShoppingCart className="h-4 w-4" />
-            Mark as Sold
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => api.exportSoldItemsExcel()}
+            >
+              Export Excel
+            </Button>
+            <div className="relative flex-1 max-w-sm">
+              <Input
+                placeholder="Search sold items..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="pl-3"
+              />
+            </div>
+            <Button onClick={openMarkSoldModal} className="gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Mark as Sold
+            </Button>
+          </div>
         </div>
 
         <div className="royal-card">

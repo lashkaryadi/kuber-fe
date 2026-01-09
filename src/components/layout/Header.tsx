@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useSearch } from "@/contexts/SearchContext";
+import { useNavigate } from 'react-router-dom';
 
 import {
   DropdownMenu,
@@ -17,16 +18,37 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 interface HeaderProps {
   title: string;
   onMenuClick?: () => void;
-  
+
 }
 
 export function Header({ title, onMenuClick }: HeaderProps) {
-  const { search, setSearch } = useSearch();
+  const { query, setQuery } = useSearch();
+  const navigate = useNavigate();
 
-  <Input
-  value={search}
-  onChange={(e) => setSearch(e.target.value)}
-/>
+  // Handle navigation based on search input
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setQuery(value);
+
+    // Navigation shortcuts
+    if (value.toLowerCase() === "inventory") {
+      navigate("/inventory");
+      setQuery(""); // Clear search after navigation
+    } else if (value.toLowerCase() === "categories") {
+      navigate("/categories");
+      setQuery(""); // Clear search after navigation
+    } else if (value.toLowerCase() === "users") {
+      navigate("/users");
+      setQuery(""); // Clear search after navigation
+    } else if (value.toLowerCase() === "dashboard") {
+      navigate("/dashboard");
+      setQuery(""); // Clear search after navigation
+    } else if (value.toLowerCase() === "sold") {
+      navigate("/sold");
+      setQuery(""); // Clear search after navigation
+    }
+  };
+
   const { user, logout } = useAuth();
 
   const initials = user?.username
@@ -56,9 +78,9 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           <div className="hidden md:flex relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-  placeholder="Search inventory..."
-  value={search}
-  onChange={(e) => setSearch(e.target.value)}
+  placeholder="Search app (inventory, users, dashboard, etc.)"
+  value={query}
+  onChange={handleSearchChange}
   className="w-80 pl-9 bg-muted/50 border-border focus:bg-background"
 />
 

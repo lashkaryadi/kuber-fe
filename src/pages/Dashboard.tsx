@@ -46,6 +46,7 @@ export default function Dashboard() {
         soldItems: 0,
         pendingApproval: 0,
         totalValue: 0,
+        inStockValue: "-", // Default value
         recentSales: [],
       });
     } else if (response.data) {
@@ -124,25 +125,28 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Summary Card */}
-        <Card className="royal-card">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-secondary" />
-              <CardTitle className="font-serif text-lg">
-                Total Portfolio Value
-              </CardTitle>
-            </div>
-            <CardDescription>
-              Combined value of all in-stock inventory
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-serif font-bold text-foreground">
-              ${stats?.totalValue?.toLocaleString() || "0"}
-            </p>
-          </CardContent>
-        </Card>
+        {/* Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2">
+          
+          <Card className="royal-card">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-secondary" />
+                <CardTitle className="font-serif text-lg">
+                  In-Stock Inventory Value
+                </CardTitle>
+              </div>
+              <CardDescription>
+                Calculated as saleCode × weight for approved items
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-serif font-bold text-foreground">
+                {stats?.inStockValue === "-" ? "-" : `₹ ${stats?.inStockValue}`}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Recent Sales */}
         <Card className="royal-card">

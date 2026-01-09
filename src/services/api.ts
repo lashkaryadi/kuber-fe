@@ -49,6 +49,7 @@ export interface DashboardStats {
   soldItems: number;
   pendingApproval: number;
   totalValue: number;
+  inStockValue: number | string;
   recentSales: SoldItem[];
 }
 
@@ -166,17 +167,17 @@ const api = {
   //   }
   // }
 
-  async getUsers() {
+  async getUsers(params?: { search?: string }) {
     try {
-      const { data } = await apiClient.get("/users");
+      const { data } = await apiClient.get("/users", { params });
 
-      const users = data.map((u: any) => ({
+      const users = data.data?.map((u: any) => ({
         id: u._id, // ✅ MAP _id → id
         username: u.username,
         email: u.email,
         role: u.role,
         createdAt: u.createdAt,
-      }));
+      })) || [];
 
       return { success: true, data: users };
     } catch (err: any) {
@@ -185,6 +186,18 @@ const api = {
         message: err?.response?.data?.message || "Failed to fetch users",
       };
     }
+  },
+
+  async exportUsersExcel() {
+    const response = await apiClient.get("/users/export", {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "users.xlsx";
+    a.click();
   },
   async createUser(payload: any) {
     try {
@@ -223,9 +236,24 @@ const api = {
   },
 
   /* -------- CATEGORIES -------- */
-  async getCategories() {
-    const { data } = await apiClient.get("/categories");
-    return data;
+  async getCategories(params?: { search?: string }) {
+    const { data } = await apiClient.get("/categories", { params });
+    // SAFETY: always return an array
+    return Array.isArray(data)
+      ? data
+      : data?.data ?? [];
+  },
+
+  async exportCategoriesExcel() {
+    const response = await apiClient.get("/categories/export", {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "categories.xlsx";
+    a.click();
   },
 
   async createCategory(payload: { name: string; description?: string }) {
@@ -304,6 +332,33 @@ async confirmInventoryImport(file: File) {
   }
 },
 
+async downloadImportReport(rows: any[]) {
+  try {
+    const response = await apiClient.post(
+      "/inventory/import/report",
+      { rows },
+      {
+        responseType: "blob",
+      }
+    );
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "import-validation-report.xlsx";
+    a.click();
+
+    // Clean up the URL object
+    window.URL.revokeObjectURL(url);
+
+    return { success: true };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.response?.data?.message || "Failed to download report",
+    };
+  }
+},
 
 
   async importInventoryExcel(file: File) {
@@ -338,7 +393,25 @@ async confirmInventoryImport(file: File) {
     a.click();
   },
 
-  async getInventory(params?: any) {
+  async exportSoldItemsExcel() {
+    const response = await apiClient.get("/sold/export", {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sold-items.xlsx";
+    a.click();
+  },
+
+  async getInventory(params?: {
+    search?: string;
+    category?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
     const { data } = await apiClient.get("/inventory", { params });
     return data;
   },

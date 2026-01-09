@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSearch } from "@/contexts/SearchContext";
 import api, { User } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,9 +22,9 @@ import { cn } from "@/lib/utils";
 
 export default function Users() {
   const { user: currentUser } = useAuth();
+  const { query: globalQuery } = useSearch(); // Use global search
 
   const [users, setUsers] = useState<User[]>([]);
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,7 +46,7 @@ export default function Users() {
   const fetchUsers = async () => {
     setLoading(true);
 
-    const response = await api.getUsers();
+    const response = await api.getUsers({ search: globalQuery }); // Pass search param
 
     if (!response.success) {
       toast({
@@ -65,22 +66,14 @@ export default function Users() {
     if (currentUser?.role === "admin") {
       fetchUsers();
     }
-  }, [currentUser?.role]);
+  }, [currentUser?.role, globalQuery]); // Fetch when global search changes
 
   /* ---------------- AUTH GUARD ---------------- */
   if (currentUser?.role !== "admin") {
     return <Navigate to="/dashboard" replace />;
   }
 
-  /* ---------------- SEARCH ---------------- */
-  const filteredUsers = Array.isArray(users)
-    ? users.filter((u) =>
-        [u.username, u.email, u.role]
-          .join(" ")
-          .toLowerCase()
-          .includes(search.toLowerCase())
-      )
-    : [];
+  // Use users directly since search is handled server-side
 
   /* ---------------- MODALS ---------------- */
   const openAddModal = () => {
@@ -247,26 +240,27 @@ export default function Users() {
     <MainLayout title="Users">
       <div className="space-y-6">
         <div className="flex justify-between items-center gap-4">
-          <div className="relative w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search users..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <p className="text-muted-foreground">
+            Manage user accounts and permissions
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => api.exportUsersExcel()}
+            >
+              Export Excel
+            </Button>
+            <Button onClick={openAddModal} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add User
+            </Button>
           </div>
-
-          <Button onClick={openAddModal} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add User
-          </Button>
         </div>
 
         <div className="royal-card">
           <DataTable
             columns={columns}
-            data={filteredUsers}
+            data={users}
             loading={loading}
             keyExtractor={(item) => item.id}
             emptyMessage="No users found"

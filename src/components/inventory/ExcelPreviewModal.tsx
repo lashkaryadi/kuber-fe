@@ -1,6 +1,7 @@
 import { Modal } from "@/components/common/Modal";
 import { Button } from "@/components/ui/button";
-import * as XLSX from "xlsx";
+import api from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 
 interface ExcelPreviewModalProps {
   open: boolean;
@@ -15,24 +16,15 @@ export function ExcelPreviewModal({
   rows,
   onConfirm,
 }: ExcelPreviewModalProps) {
-  const downloadReport = () => {
-    const report = rows.map((r) => ({
-      Serial: r.serialNumber,
-      Category: r.category,
-      Pieces: r.pieces,
-      Weight: r.weight,
-      Status: r.isDuplicate
-        ? "Duplicate"
-        : r.isValid
-        ? "Valid"
-        : "Invalid",
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(report);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Validation Report");
-
-    XLSX.writeFile(wb, "inventory-import-validation-report.xlsx");
+  const downloadReport = async () => {
+    const result = await api.downloadImportReport(rows);
+    if (!result.success) {
+      toast({
+        title: "Download Failed",
+        description: result.message || "Could not download validation report",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
