@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Plus, Search, Edit, Trash2, Eye, Filter } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Eye, Filter, ShoppingCart } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DataTable, Column } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -66,6 +66,81 @@ export default function Inventory() {
   const [allRows, setAllRows] = useState<ExcelPreviewRow[]>([]);
   const hasValidRows = previewRows.some((r) => r.isValid && !r.isDuplicate);
   const [saving, setSaving] = useState(false);
+
+  // State for mark as sold functionality
+  const [markAsSoldModalOpen, setMarkAsSoldModalOpen] = useState(false);
+  const [itemToMarkAsSold, setItemToMarkAsSold] = useState<InventoryItem | null>(null);
+  const [soldForm, setSoldForm] = useState({
+    price: "",
+    currency: "USD",
+    soldDate: new Date().toISOString().split("T")[0],
+    buyer: "",
+  });
+  const [selling, setSelling] = useState(false);
+
+  const markAsSoldFromInventory = (item: InventoryItem) => {
+    setItemToMarkAsSold(item);
+    setSoldForm({
+      price: "",
+      currency: "USD",
+      soldDate: new Date().toISOString().split("T")[0],
+      buyer: "",
+    });
+    setMarkAsSoldModalOpen(true);
+  };
+
+  const handleMarkAsSoldSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSelling(true);
+
+    if (!itemToMarkAsSold) {
+      toast({
+        title: "Error",
+        description: "No item selected to sell",
+        variant: "destructive",
+      });
+      setSelling(false);
+      return;
+    }
+
+    if (!soldForm.price || Number(soldForm.price) <= 0) {
+      toast({
+        title: "Invalid price",
+        description: "Enter a valid sale price",
+        variant: "destructive",
+      });
+      setSelling(false);
+      return;
+    }
+
+    const response = await api.markAsSold({
+      inventoryId: itemToMarkAsSold.id,
+      price: Number(soldForm.price),
+      currency: soldForm.currency,
+      soldDate: soldForm.soldDate,
+      buyer: soldForm.buyer || undefined,
+    });
+
+    if (!response.success) {
+      toast({
+        title: "Error",
+        description: response.message,
+        variant: "destructive",
+      });
+      setSelling(false);
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "Item marked as sold successfully",
+    });
+
+    setMarkAsSoldModalOpen(false);
+    setItemToMarkAsSold(null);
+    fetchData(); // Refresh the inventory list
+    setSelling(false);
+  };
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -487,6 +562,22 @@ export default function Inventory() {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+
+          {/* Mark as Sold button - only for pending/approved items */}
+          {(item.status === "pending" || item.status === "approved") && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                // Navigate to Sold Items page and pre-select this item
+                markAsSoldFromInventory(item);
+              }}
+              className="h-8 w-8 text-green-600 hover:text-green-800"
+              title="Mark as Sold"
+            >
+              <ShoppingCart className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       ),
     },
@@ -1036,6 +1127,96 @@ export default function Inventory() {
           fetchData();
         }}
       />
+
+      {/* Mark as Sold Modal */}
+      <Modal
+        open={markAsSoldModalOpen}
+        onClose={() => setMarkAsSoldModalOpen(false)}
+        title="Mark Item as Sold"
+        size="md"
+      >
+        {itemToMarkAsSold && (
+          <form onSubmit={handleMarkAsSoldSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Item</Label>
+              <p className="font-medium">{itemToMarkAsSold.serialNumber} — {itemToMarkAsSold.category?.name}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price">Sale Price *</Label>
+                <div className="flex gap-2">
+                  <Select
+                    value={soldForm.currency}
+                    onValueChange={(value) =>
+                      setSoldForm({ ...soldForm, currency: value })
+                    }
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="GBP">GBP</SelectItem>
+                      <SelectItem value="INR">INR</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    value={soldForm.price}
+                    onChange={(e) =>
+                      setSoldForm({ ...soldForm, price: e.target.value })
+                    }
+                    placeholder="0.00"
+                    required
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="soldDate">Sold Date *</Label>
+                <Input
+                  id="soldDate"
+                  type="date"
+                  value={soldForm.soldDate}
+                  onChange={(e) =>
+                    setSoldForm({ ...soldForm, soldDate: e.target.value })
+                  }
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="buyer">Buyer Name</Label>
+              <Input
+                id="buyer"
+                value={soldForm.buyer}
+                onChange={(e) =>
+                  setSoldForm({ ...soldForm, buyer: e.target.value })
+                }
+                placeholder="Optional buyer information"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMarkAsSoldModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={selling}>
+                {selling ? "Processing..." : "Mark as Sold"}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </MainLayout>
   );
 }

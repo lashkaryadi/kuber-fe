@@ -57,26 +57,42 @@ export default function SoldItems() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [soldRes, inventoryRes] = await Promise.all([
-      api.getSoldItems({
-        page,
-        limit: 10,
-        search: searchText || undefined,
-        sortBy: sortKey || undefined,
-        sortOrder: sortDir || undefined
-      }),
-      api.getInventory({ status: "approved" }),
-    ]);
+    try {
+      const [soldRes, inventoryRes] = await Promise.all([
+        api.getSoldItems({
+          page,
+          limit: 10,
+          search: searchText || undefined,
+          sortBy: sortKey || undefined,
+          sortOrder: sortDir || undefined
+        }),
+        api.getInventory({ status: "approved" }),
+      ]);
 
-    if (soldRes.success) {
-      setSoldItems(soldRes.data);
-      setMeta(soldRes.meta);
-    } else {
+      if (soldRes.success) {
+        setSoldItems(Array.isArray(soldRes.data) ? soldRes.data : []);
+        setMeta(soldRes.meta || null);
+      } else {
+        setSoldItems([]);
+        setMeta(null);
+      }
+
+      // Handle inventory response defensively
+      if (inventoryRes && typeof inventoryRes === 'object' && 'data' in inventoryRes) {
+        setAvailableItems(Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
+      } else if (Array.isArray(inventoryRes)) {
+        setAvailableItems(inventoryRes);
+      } else {
+        setAvailableItems([]);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
       setSoldItems([]);
+      setAvailableItems([]);
+      setMeta(null);
+    } finally {
+      setLoading(false);
     }
-    if (inventoryRes.data) setAvailableItems(inventoryRes.data);
-
-    setLoading(false);
   };
 
   const openModal = () => {
@@ -94,31 +110,24 @@ export default function SoldItems() {
     setModalOpen(true);
 
     try {
-      // Fetch both pending and approved items that can be sold
-      const [approvedRes, pendingRes] = await Promise.all([
-        api.getInventory({ status: "approved", page: 1, limit: 100 }), // Get all approved items
-        api.getInventory({ status: "pending", page: 1, limit: 100 })   // Get all pending items
-      ]);
+      // Fetch only sellable items (approved items only)
+      const response = await api.getSellableInventory();
 
-      // Extract data from the response (handle both old and new formats)
-      const approvedItems = Array.isArray(approvedRes) ? approvedRes : (approvedRes?.data || []);
-      const pendingItems = Array.isArray(pendingRes) ? pendingRes : (pendingRes?.data || []);
-
-      // Combine approved and pending items and remove duplicates by ID
-      const allSellableItemsMap = new Map();
-      [...approvedItems, ...pendingItems].forEach(item => {
-        if (!allSellableItemsMap.has(item.id)) {
-          allSellableItemsMap.set(item.id, item);
-        }
-      });
-
-      const allSellableItems = Array.from(allSellableItemsMap.values());
-
-      setApprovedItems(allSellableItems);
+      if (response.success) {
+        setApprovedItems(response.data);
+      } else {
+        setApprovedItems([]);
+        toast({
+          title: "Error",
+          description: response.message || "Failed to fetch sellable inventory",
+          variant: "destructive",
+        });
+      }
     } catch (err: any) {
+      setApprovedItems([]);
       toast({
         title: "Error",
-        description: err?.response?.data?.message || "Failed to fetch inventory",
+        description: err?.response?.data?.message || "Failed to fetch sellable inventory",
         variant: "destructive",
       });
     }
@@ -179,6 +188,16 @@ export default function SoldItems() {
       return;
     }
 
+    // For new sales, validate that an item is selected
+    if (!editMode && !formData.inventoryId) {
+      toast({
+        title: "Select item",
+        description: "Please select an approved item to sell",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSaving(true);
 
     const response =
@@ -214,7 +233,9 @@ export default function SoldItems() {
     setModalOpen(false);
     setEditMode(false);
     setSelectedSold(null);
-    fetchData();
+
+    // Refresh data after successful operation
+    await fetchData();
     setSaving(false);
   };
 

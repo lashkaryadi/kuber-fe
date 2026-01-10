@@ -467,6 +467,19 @@ async downloadImportReport(rows: any[]) {
     }
   },
 
+  async getSellableInventory() {
+    try {
+      const { data } = await apiClient.get("/inventory/sellable");
+      return { success: true, data: data.data || [] };
+    } catch (err: any) {
+      return {
+        success: false,
+        message:
+          err?.response?.data?.message || "Failed to fetch sellable inventory",
+      };
+    }
+  },
+
   /* -------- SOLD -------- */
   // async getSoldItems() {
   //   const { data } = await apiClient.get("/sold");
