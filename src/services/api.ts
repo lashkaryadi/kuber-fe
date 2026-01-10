@@ -36,7 +36,7 @@ export interface InventoryItem {
   certification?: string;
   location?: string;
 
-  status: "pending" | "approved" | "sold";
+  status: "pending" | "in_stock" | "sold";
 
   description?: string;
   images?: string[];
@@ -403,15 +403,22 @@ async downloadImportReport(rows: any[]) {
   },
 
   async getInventory(params?: {
-    search?: string;
-    category?: string;
-    status?: string;
-    page?: number;
-    limit?: number;
-  }) {
-    const { data } = await apiClient.get("/inventory", { params });
-    return data;
-  },
+  search?: string;
+  category?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}) {
+  const { data } = await apiClient.get("/inventory", { params });
+
+  return {
+    data: Array.isArray(data?.data) ? data.data : [],
+    meta: data?.meta || null,
+  };
+}
+,
 
   async createInventoryItem(payload: any) {
     try {
@@ -453,7 +460,7 @@ async downloadImportReport(rows: any[]) {
   async getApprovedInventory() {
     try {
       const { data } = await apiClient.get("/inventory", {
-        params: { status: "approved" },
+        params: { status: "in_stock" },
       });
       // Handle both old and new response formats for backward compatibility
       const inventoryData = Array.isArray(data) ? data : (data?.data || []);
@@ -462,7 +469,7 @@ async downloadImportReport(rows: any[]) {
       return {
         success: false,
         message:
-          err?.response?.data?.message || "Failed to fetch approved inventory",
+          err?.response?.data?.message || "Failed to fetch in_stock inventory",
       };
     }
   },

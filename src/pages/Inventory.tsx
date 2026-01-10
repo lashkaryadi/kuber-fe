@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Plus, Search, Edit, Trash2, Eye, Filter, ShoppingCart } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Eye, ShoppingCart } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DataTable, Column } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -58,7 +58,7 @@ export default function Inventory() {
     dimensionUnit: "mm",
     certification: "",
     location: "",
-    status: "pending" as "pending" | "approved",
+    status: "pending" as InventoryItem["status"],
     description: "",
     images: [] as string[],
   });
@@ -153,8 +153,13 @@ export default function Inventory() {
 
   // Effect to fetch data when page changes (including when page is reset due to filter changes)
   useEffect(() => {
+  const timer = setTimeout(() => {
     fetchData();
-  }, [page]);
+  }, 300);
+
+  return () => clearTimeout(timer);
+}, [page, searchText, categoryFilter, statusFilter, sortKey, sortDir]);
+
 
   const fetchData = async () => {
     // Check if filters have changed compared to the last fetch
@@ -170,7 +175,10 @@ export default function Inventory() {
       const [inventoryRes, categoriesRes] = await Promise.all([
         api.getInventory({
           search: searchText,
-          category: categoryFilter !== "all" ? categoryFilter : undefined,
+category:
+  categoryFilter && categoryFilter !== "all"
+    ? categoryFilter
+    : undefined,
           status: statusFilter !== "all" ? statusFilter : undefined,
           sortBy: sortKey || "createdAt",
           sortOrder: sortDir,
@@ -193,14 +201,14 @@ export default function Inventory() {
   };
 
   // Trigger fetch when search or filters change with debounce
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1); // Reset to first page when filters change
-      fetchData();
-    }, 300); // 300ms debounce
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     setPage(1); // Reset to first page when filters change
+  //     fetchData();
+  //   }, 300); // 300ms debounce
 
-    return () => clearTimeout(timer);
-  }, [searchText, categoryFilter, statusFilter, sortKey, sortDir]);
+  //   return () => clearTimeout(timer);
+  // }, [searchText, categoryFilter, statusFilter, sortKey, sortDir]);
 
   const openAddModal = () => {
     setSelectedItem(null);
@@ -563,8 +571,8 @@ export default function Inventory() {
             <Trash2 className="h-4 w-4" />
           </Button>
 
-          {/* Mark as Sold button - only for pending/approved items */}
-          {(item.status === "pending" || item.status === "approved") && (
+          {/* Mark as Sold button - only for pending/in_stock items */}
+          {(item.status === "pending" || item.status === "in_stock") && (
             <Button
               variant="ghost"
               size="icon"
@@ -652,7 +660,7 @@ export default function Inventory() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">In Stock</SelectItem>
+                <SelectItem value="in_stock">In Stock</SelectItem>
                 <SelectItem value="sold">Sold</SelectItem>
               </SelectContent>
             </Select>
@@ -712,7 +720,7 @@ export default function Inventory() {
               <div className="fixed bottom-4 right-4 bg-card shadow-lg p-4 rounded-lg">
                 <Button
                   onClick={() =>
-                    api.bulkUpdateInventory(selectedIds, { status: "approved" })
+                    api.bulkUpdateInventory(selectedIds, { status: "in_stock" })
                   }
                 >
                   Approve Selected
@@ -939,8 +947,8 @@ export default function Inventory() {
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
-                value={formData.status}
-                onValueChange={(value: "pending" | "approved") =>
+                value={formData.status === "sold" ? "in_stock" : formData.status}
+                onValueChange={(value: "pending" | "in_stock") =>
                   setFormData({ ...formData, status: value })
                 }
               >
@@ -949,7 +957,7 @@ export default function Inventory() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">In Stock</SelectItem>
+                  <SelectItem value="in_stock">In Stock</SelectItem>
                 </SelectContent>
               </Select>
             </div>
