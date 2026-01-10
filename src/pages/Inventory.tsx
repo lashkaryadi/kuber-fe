@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import api, { InventoryItem, Category } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
+import { Pagination } from "@/components/common/Pagination";
 
 export default function Inventory() {
   // const [excelFile, setExcelFile] = useState<File | null>(null);
@@ -57,7 +58,7 @@ export default function Inventory() {
     dimensionUnit: "mm",
     certification: "",
     location: "",
-    status: "pending" as "pending" | "approved" | "sold",
+    status: "pending" as "pending" | "approved",
     description: "",
     images: [] as string[],
   });
@@ -66,11 +67,28 @@ export default function Inventory() {
   const hasValidRows = previewRows.some((r) => r.isValid && !r.isDuplicate);
   const [saving, setSaving] = useState(false);
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>(null);
+
+  // Effect to reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchText, categoryFilter, statusFilter, sortKey, sortDir]);
+
+  // Effect to fetch data when page changes (including when page is reset due to filter changes)
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page]);
 
   const fetchData = async () => {
+    // Check if filters have changed compared to the last fetch
+    // If filters changed and we're not on page 1, reset to page 1 and return early
+    // This will trigger a re-render with page=1, which will then call fetchData again
+
+    // Since we can't prevent the execution mid-way, we'll handle this differently
+    // We'll use a ref to track if we just reset the page due to filter changes
+
     setLoading(true);
 
     try {
@@ -81,12 +99,15 @@ export default function Inventory() {
           status: statusFilter !== "all" ? statusFilter : undefined,
           sortBy: sortKey || "createdAt",
           sortOrder: sortDir,
+          page,
+          limit: 10,
         }),
         api.getCategories(),
       ]);
 
-      setItems(Array.isArray(inventoryRes.items) ? inventoryRes.items : []);
-      setCategories(Array.isArray(categoriesRes) ? categoriesRes : []);
+      setItems(Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
+      setMeta(inventoryRes.meta);
+      setCategories(Array.isArray(categoriesRes) ? categoriesRes : (categoriesRes?.data || []));
     } catch (err) {
       console.error("Failed to load inventory data", err);
       setItems([]);
@@ -99,6 +120,7 @@ export default function Inventory() {
   // Trigger fetch when search or filters change with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
+      setPage(1); // Reset to first page when filters change
       fetchData();
     }, 300); // 300ms debounce
 
@@ -410,7 +432,6 @@ export default function Inventory() {
       ),
       render: (item) => item.saleCode || "-",
     },
-
     {
   key: "dimensions",
   header: "Dimensions",
@@ -630,6 +651,11 @@ export default function Inventory() {
             keyExtractor={(item) => item.id}
             emptyMessage="No inventory items found"
           />
+          <Pagination
+            page={meta?.page}
+            pages={meta?.pages}
+            onChange={setPage}
+          />
         </div>
       </div>
 
@@ -823,7 +849,7 @@ export default function Inventory() {
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value: "pending" | "approved" | "sold") =>
+                onValueChange={(value: "pending" | "approved") =>
                   setFormData({ ...formData, status: value })
                 }
               >
@@ -833,7 +859,6 @@ export default function Inventory() {
                 <SelectContent>
                   <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="approved">In Stock</SelectItem>
-                  <SelectItem value="sold">Sold</SelectItem>
                 </SelectContent>
               </Select>
             </div>

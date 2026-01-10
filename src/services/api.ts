@@ -236,12 +236,9 @@ const api = {
   },
 
   /* -------- CATEGORIES -------- */
-  async getCategories(params?: { search?: string }) {
+  async getCategories(params?: { search?: string; page?: number; limit?: number }) {
     const { data } = await apiClient.get("/categories", { params });
-    // SAFETY: always return an array
-    return Array.isArray(data)
-      ? data
-      : data?.data ?? [];
+    return data;
   },
 
   async exportCategoriesExcel() {
@@ -458,7 +455,9 @@ async downloadImportReport(rows: any[]) {
       const { data } = await apiClient.get("/inventory", {
         params: { status: "approved" },
       });
-      return { success: true, data };
+      // Handle both old and new response formats for backward compatibility
+      const inventoryData = Array.isArray(data) ? data : (data?.data || []);
+      return { success: true, data: inventoryData };
     } catch (err: any) {
       return {
         success: false,
@@ -473,18 +472,16 @@ async downloadImportReport(rows: any[]) {
   //   const { data } = await apiClient.get("/sold");
   //   return data;
   // },
-  async getSoldItems() {
+  async getSoldItems(params?: { page?: number; limit?: number; search?: string; sortBy?: string; sortOrder?: string }) {
     try {
-      const { data } = await apiClient.get("/sold");
-
-      return {
-        success: true,
-        data: data.data, // 👈 because backend sends { success, data }
-      };
+      const { data } = await apiClient.get("/sold", { params });
+      return { success: true, data: data.data, meta: data.meta };
     } catch (err: any) {
       return {
         success: false,
         message: err?.response?.data?.message || "Failed to fetch sold items",
+        data: [],
+        meta: null
       };
     }
   },

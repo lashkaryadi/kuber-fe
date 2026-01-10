@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useSearch } from '@/contexts/SearchContext';
+import { Pagination } from '@/components/common/Pagination';
 import api, { Category } from '@/services/api';
 import { toast } from '@/hooks/use-toast';
 
@@ -24,15 +25,24 @@ export default function Categories() {
   const [saving, setSaving] = useState(false);
   const { query: globalQuery } = useSearch(); // Use global search
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>(null);
+
   useEffect(() => {
     fetchCategories();
-  }, [globalQuery]); // Fetch when global search changes
+  }, [page]); // Add page to dependency array
 
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const data = await api.getCategories({ search: globalQuery }); // Pass search param
-      setCategories(Array.isArray(data) ? data : []);
+      const data = await api.getCategories({
+        search: globalQuery,
+        page,
+        limit: 10
+      }); // Pass search param and pagination
+      setCategories(Array.isArray(data.data) ? data.data : []);
+      setMeta(data.meta);
     } catch (err) {
       toast({
         title: "Error",
@@ -265,6 +275,11 @@ const closeModal = () => {
             loading={loading}
             keyExtractor={(item) => item.id}
             emptyMessage="No categories found"
+          />
+          <Pagination
+            page={meta?.page}
+            pages={meta?.pages}
+            onChange={setPage}
           />
         </div>
       </div>

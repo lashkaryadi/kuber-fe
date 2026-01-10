@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FileText, Edit, Trash2 } from "lucide-react";
+import { Pagination } from "@/components/common/Pagination";
 
 import {
   Select,
@@ -41,79 +42,35 @@ export default function SoldItems() {
   const [sortKey, setSortKey] = useState<"serialNumber" | "weight" | "price" | "buyer" | "soldDate" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<any>(null);
+
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page]); // Add page to dependency array
 
   // Trigger fetch when search or sort changes
   useEffect(() => {
     fetchData();
-  }, [searchText, sortKey, sortDir]);
+  }, [searchText, sortKey, sortDir, page]);
 
   const fetchData = async () => {
     setLoading(true);
     const [soldRes, inventoryRes] = await Promise.all([
-      api.getSoldItems(),
+      api.getSoldItems({
+        page,
+        limit: 10,
+        search: searchText || undefined,
+        sortBy: sortKey || undefined,
+        sortOrder: sortDir || undefined
+      }),
       api.getInventory({ status: "approved" }),
     ]);
 
     if (soldRes.success) {
-      // Apply local search and sort to the data
-      let filteredSold = soldRes.data.filter((item) => {
-        const q = searchText.toLowerCase();
-
-        return (
-          item.inventoryItem?.serialNumber?.toLowerCase().includes(q) ||
-          item.inventoryItem?.category?.name?.toLowerCase().includes(q) ||
-          item.inventoryItem?.weight?.toString().includes(q) ||
-          item.price?.toString().includes(q) ||
-          item.buyer?.toLowerCase().includes(q)
-        );
-      });
-
-      // Apply local sort
-      if (sortKey) {
-        filteredSold.sort((a, b) => {
-          let aVal, bVal;
-
-          switch (sortKey) {
-            case "serialNumber":
-              aVal = a.inventoryItem?.serialNumber;
-              bVal = b.inventoryItem?.serialNumber;
-              break;
-            case "weight":
-              aVal = a.inventoryItem?.weight;
-              bVal = b.inventoryItem?.weight;
-              break;
-            case "price":
-              aVal = a.price;
-              bVal = b.price;
-              break;
-            case "buyer":
-              aVal = a.buyer || "";
-              bVal = b.buyer || "";
-              break;
-            case "soldDate":
-              aVal = a.soldDate;
-              bVal = b.soldDate;
-              break;
-            default:
-              return 0;
-          }
-
-          if (aVal == null || bVal == null) return 0;
-
-          if (typeof aVal === "number" && typeof bVal === "number") {
-            return sortDir === "asc" ? aVal - bVal : bVal - aVal;
-          }
-
-          return sortDir === "asc"
-            ? String(aVal).localeCompare(String(bVal))
-            : String(bVal).localeCompare(String(aVal));
-        });
-      }
-
-      setSoldItems(filteredSold);
+      setSoldItems(soldRes.data);
+      setMeta(soldRes.meta);
     } else {
       setSoldItems([]);
     }
@@ -136,17 +93,35 @@ export default function SoldItems() {
   const openMarkSoldModal = async () => {
     setModalOpen(true);
 
-    const res = await api.getApprovedInventory();
-    if (!res.success) {
+    try {
+      // Fetch both pending and approved items that can be sold
+      const [approvedRes, pendingRes] = await Promise.all([
+        api.getInventory({ status: "approved", page: 1, limit: 100 }), // Get all approved items
+        api.getInventory({ status: "pending", page: 1, limit: 100 })   // Get all pending items
+      ]);
+
+      // Extract data from the response (handle both old and new formats)
+      const approvedItems = Array.isArray(approvedRes) ? approvedRes : (approvedRes?.data || []);
+      const pendingItems = Array.isArray(pendingRes) ? pendingRes : (pendingRes?.data || []);
+
+      // Combine approved and pending items and remove duplicates by ID
+      const allSellableItemsMap = new Map();
+      [...approvedItems, ...pendingItems].forEach(item => {
+        if (!allSellableItemsMap.has(item.id)) {
+          allSellableItemsMap.set(item.id, item);
+        }
+      });
+
+      const allSellableItems = Array.from(allSellableItemsMap.values());
+
+      setApprovedItems(allSellableItems);
+    } catch (err: any) {
       toast({
         title: "Error",
-        description: res.message,
+        description: err?.response?.data?.message || "Failed to fetch inventory",
         variant: "destructive",
       });
-      return;
     }
-
-    setApprovedItems(res.data);
   };
 
   const handleUndo = async (soldId: string) => {
@@ -565,6 +540,11 @@ export default function SoldItems() {
             loading={loading}
             keyExtractor={(item) => item.id}
             emptyMessage="No sold items found"
+          />
+          <Pagination
+            page={meta?.page}
+            pages={meta?.pages}
+            onChange={setPage}
           />
         </div>
       </div>
