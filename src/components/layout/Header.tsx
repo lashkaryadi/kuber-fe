@@ -17,11 +17,11 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface HeaderProps {
   title: string;
+  isMobile?: boolean;
   onMenuClick?: () => void;
-
 }
 
-export function Header({ title, onMenuClick }: HeaderProps) {
+export function Header({ title, isMobile = false, onMenuClick }: HeaderProps) {
   const { query, setQuery } = useSearch();
   const navigate = useNavigate();
 
@@ -60,7 +60,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 h-16 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <div className="flex h-full items-center justify-between px-6">
+      <div className="flex h-full items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-4">
           <Button
             onClick={onMenuClick}
@@ -68,12 +68,12 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h1 className="font-serif text-xl font-semibold text-foreground tracking-tight">
+          <h1 className="font-serif text-xl font-semibold text-foreground tracking-tight truncate max-w-[200px] sm:max-w-md">
             {title}
           </h1>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* Search */}
           <div className="hidden md:flex relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -81,7 +81,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
   placeholder="Search app (inventory, users, dashboard, etc.)"
   value={query}
   onChange={handleSearchChange}
-  className="w-80 pl-9 bg-muted/50 border-border focus:bg-background"
+  className="w-48 sm:w-64 lg:w-80 pl-9 bg-muted/50 border-border focus:bg-background"
 />
 
           </div>
@@ -101,7 +101,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden md:block text-sm font-medium">
+                <span className="hidden md:block text-sm font-medium max-w-[100px] truncate">
                   {user?.username}
                 </span>
               </Button>
@@ -109,8 +109,8 @@ export function Header({ title, onMenuClick }: HeaderProps) {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col">
-                  <span>{user?.username}</span>
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="truncate">{user?.username}</span>
+                  <span className="text-xs font-normal text-muted-foreground truncate">
                     {user?.email}
                   </span>
                 </div>

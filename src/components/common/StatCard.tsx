@@ -24,14 +24,14 @@ export function StatCard({ title, value, icon: Icon, trend, variant = 'default' 
     <div className={cn('stat-card', variantStyles[variant])}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-3xl font-serif font-semibold text-foreground">
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</p>
+          <p className="mt-1 text-xl sm:text-2xl md:text-3xl font-serif font-semibold text-foreground">
             {value}
           </p>
           {trend && (
             <p
               className={cn(
-                'mt-1 text-sm',
+                'mt-1 text-xs sm:text-sm',
                 trend.isPositive ? 'text-success' : 'text-destructive'
               )}
             >
@@ -39,8 +39,8 @@ export function StatCard({ title, value, icon: Icon, trend, variant = 'default' 
             </p>
           )}
         </div>
-        <div className="rounded-lg bg-muted p-3">
-          <Icon className="h-6 w-6 text-muted-foreground" />
+        <div className="rounded-lg bg-muted p-2 sm:p-3">
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
         </div>
       </div>
     </div>

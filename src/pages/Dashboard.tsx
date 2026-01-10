@@ -96,9 +96,9 @@ export default function Dashboard() {
 
   return (
     <MainLayout title="Dashboard">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
             title="Total Inventory"
             value={stats?.totalInventory || 0}
@@ -126,22 +126,21 @@ export default function Dashboard() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2">
-          
+        <div className="grid grid-cols-1 gap-3 sm:gap-4">
           <Card className="royal-card">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-secondary" />
-                <CardTitle className="font-serif text-lg">
+                <CardTitle className="font-serif text-base sm:text-lg">
                   In-Stock Inventory Value
                 </CardTitle>
               </div>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 Calculated as saleCode × weight for approved items
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-4xl font-serif font-bold text-foreground">
+              <p className="text-2xl sm:text-4xl font-serif font-bold text-foreground">
                 {stats?.inStockValue === "-" ? "-" : `₹ ${stats?.inStockValue}`}
               </p>
             </CardContent>
@@ -151,8 +150,8 @@ export default function Dashboard() {
         {/* Recent Sales */}
         <Card className="royal-card">
           <CardHeader>
-            <CardTitle className="font-serif text-lg">Recent Sales</CardTitle>
-            <CardDescription>
+            <CardTitle className="font-serif text-base sm:text-lg">Recent Sales</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               Latest transactions from your inventory
             </CardDescription>
           </CardHeader>

@@ -136,7 +136,7 @@
   }
 
   .stat-card {
-    @apply royal-card p-6 transition-all duration-200 hover:shadow-md hover:border-secondary/30;
+    @apply royal-card p-4 sm:p-6 transition-all duration-200 hover:shadow-md hover:border-secondary/30;
   }
 
   .table-header {
@@ -149,6 +149,23 @@
 
   .sidebar-link-active {
     @apply bg-sidebar-accent text-sidebar-primary border-l-2 border-sidebar-primary;
+  }
+}
+
+/* Mobile-specific styles */
+@media (max-width: 640px) {
+  .sidebar-link span {
+    display: none;
+  }
+
+  .sidebar-link {
+    justify-content: center;
+    padding: 1rem 0.5rem;
+  }
+
+  .sidebar-link-active {
+    border-left: none;
+    border-top: 2px solid hsl(var(--sidebar-primary));
   }
 }
 

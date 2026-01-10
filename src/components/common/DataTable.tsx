@@ -48,39 +48,41 @@ export function DataTable<T>({
 
   return (
     <div className="rounded-md border border-border overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="table-header hover:bg-muted/50">
-            {columns.map((column) => (
-              <TableHead key={column.key} className={column.className}>
-                {column.header}
-              </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
+      <div className="overflow-x-auto">
+        <Table className="min-w-full">
+          <TableHeader>
+            <TableRow className="table-header hover:bg-muted/50">
+              {columns.map((column) => (
+                <TableHead key={column.key} className={column.className}>
+                  {column.header}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
 
-        <TableBody>
-          {data.map((row, rowIndex) => {
-            const rowKey =
-              keyExtractor(row) ?? `row-${rowIndex}`;
+          <TableBody>
+            {data.map((row, rowIndex) => {
+              const rowKey =
+                keyExtractor(row) ?? `row-${rowIndex}`;
 
-            return (
-              <TableRow key={rowKey} className="hover:bg-muted/30">
-                {columns.map((col) => (
-                  <TableCell
-                    key={`${rowKey}-${col.key}`}
-                    className={col.className}
-                  >
-                    {col.render
-                      ? col.render(row)
-                      : (row as any)?.[col.key] ?? "-"}
-                  </TableCell>
-                ))}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+              return (
+                <TableRow key={rowKey} className="hover:bg-muted/30">
+                  {columns.map((col) => (
+                    <TableCell
+                      key={`${rowKey}-${col.key}`}
+                      className={col.className}
+                    >
+                      {col.render
+                        ? col.render(row)
+                        : (row as any)?.[col.key] ?? "-"}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
