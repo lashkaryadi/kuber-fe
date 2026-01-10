@@ -45,7 +45,7 @@ export interface InventoryItem {
 }
 export interface DashboardStats {
   totalInventory: number;
-  approvedItems: number;
+  in_stockItems: number;
   soldItems: number;
   pendingApproval: number;
   totalValue: number;

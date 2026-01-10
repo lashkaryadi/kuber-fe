@@ -42,7 +42,7 @@ export default function Dashboard() {
       // Set default stats for UI display
       setStats({
         totalInventory: 0,
-        approvedItems: 0,
+        in_stockItems: 0,
         soldItems: 0,
         pendingApproval: 0,
         totalValue: 0,
@@ -107,7 +107,7 @@ export default function Dashboard() {
           />
           <StatCard
             title="In Stock Items"
-            value={stats?.approvedItems || 0}
+            value={stats?.in_stockItems || 0}
             icon={CheckCircle}
             variant="success"
           />
