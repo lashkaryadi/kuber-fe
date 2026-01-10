@@ -5,6 +5,7 @@ import {
   FolderOpen,
   ShoppingCart,
   Users,
+  Shield,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -20,16 +21,17 @@ const navigation = [
   { name: 'Inventory', href: '/inventory', icon: Gem },
   { name: 'Categories', href: '/categories', icon: FolderOpen },
   { name: 'Sold Items', href: '/sold', icon: ShoppingCart },
+  { name: 'Audit Logs', href: '/audit-logs', icon: Shield, adminOnly: true },
   { name: 'Users', href: '/users', icon: Users, adminOnly: true },
 ];
 
 interface SidebarProps {
   isMobile?: boolean;
   mobileMenuOpen?: boolean;
-  setMobileMenuOpen?: (open: boolean) => void;
+  setMobileMenuOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function Sidebar({ isMobile = false, mobileMenuOpen = false, setMobileMenuOpen = () => {} }: SidebarProps) {
+export function Sidebar({ isMobile = false, mobileMenuOpen = false, setMobileMenuOpen, }: SidebarProps) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(isMobile ? true : false);
@@ -50,7 +52,7 @@ export function Sidebar({ isMobile = false, mobileMenuOpen = false, setMobileMen
   // Close mobile menu when navigating
   useEffect(() => {
     if (isMobile) {
-      setMobileMenuOpen(false);
+      setMobileMenuOpen?.(false);
     }
   }, [location.pathname, isMobile]);
 
@@ -70,8 +72,11 @@ export function Sidebar({ isMobile = false, mobileMenuOpen = false, setMobileMen
         className={cn(
           "fixed left-0 top-0 z-40 h-screen bg-sidebar transition-all duration-300 flex flex-col",
           isMobile
-            ? `transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} w-64`
-            : cn(collapsed ? "w-16" : "w-64")
+  ? `transform ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"} w-64`
+  : collapsed
+    ? "w-16"
+    : "w-64"
+
         )}
       >
         {/* Logo */}
@@ -113,7 +118,7 @@ export function Sidebar({ isMobile = false, mobileMenuOpen = false, setMobileMen
                   isActive && "sidebar-link-active"
                 )}
                 title={collapsed || isMobile ? item.name : undefined}
-                onClick={() => isMobile && setMobileMenuOpen(false)}
+                onClick={() => isMobile && setMobileMenuOpen?.(false)}
               >
                 <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-sidebar-primary")} />
                 {!(collapsed || isMobile) && <span className="font-medium">{item.name}</span>}

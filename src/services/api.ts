@@ -80,6 +80,17 @@ export interface SoldItem {
   createdAt: string;
 }
 
+export interface AuditLog {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  performedBy?: {
+    email: string;
+  };
+  createdAt: string;
+}
+
 /* =======================
    AXIOS INSTANCE
 ======================== */
@@ -650,6 +661,42 @@ async downloadImportReport(rows: any[]) {
   async getInvoiceById(id: string) {
     const { data } = await apiClient.get(`/invoices/${id}`);
     return data;
+  },
+
+  async getAuditLogs(params?: {
+    page?: number;
+    limit?: number;
+    action?: string;
+    inventoryId?: string;
+  }) {
+    const { data } = await apiClient.get("/audit-logs", { params });
+    return data;
+  },
+
+  async exportAuditLogs() {
+    const response = await apiClient.get("/audit-logs/export", {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "audit-logs.xlsx";
+    a.click();
+  },
+
+  async exportAuditLogsExcel() {
+    const response = await apiClient.get("/audit-logs/export", {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "audit-logs.xlsx";
+    a.click();
+
+    window.URL.revokeObjectURL(url);
   },
 };
 

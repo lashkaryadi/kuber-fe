@@ -17,6 +17,7 @@ import Categories from "./pages/Categories";
 import SoldItems from "./pages/SoldItems";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
+import AuditLogs from "./pages/AuditLogs";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/audit-logs"
+              element={
+                <ProtectedRoute>
+                  <AuditLogs />
                 </ProtectedRoute>
               }
             />
