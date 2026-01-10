@@ -11,6 +11,7 @@ import { StatCard } from "@/components/common/StatCard";
 import { LoadingPage } from "@/components/common/LoadingSpinner";
 import { DataTable, Column } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { useAuth } from "@/contexts/AuthContext";
 import api, { DashboardStats, SoldItem } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -24,6 +25,7 @@ import {
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchDashboardData();
@@ -127,24 +129,26 @@ export default function Dashboard() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 gap-3 sm:gap-4">
-          <Card className="royal-card">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-secondary" />
-                <CardTitle className="font-serif text-base sm:text-lg">
-                  In-Stock Inventory Value
-                </CardTitle>
-              </div>
-              <CardDescription className="text-xs sm:text-sm">
-                Calculated as saleCode × weight for approved items
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl sm:text-4xl font-serif font-bold text-foreground">
-                {stats?.inStockValue === "-" ? "-" : `₹ ${stats?.inStockValue}`}
-              </p>
-            </CardContent>
-          </Card>
+          {user?.role === "admin" && (
+            <Card className="royal-card">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-secondary" />
+                  <CardTitle className="font-serif text-base sm:text-lg">
+                    In-Stock Inventory Value
+                  </CardTitle>
+                </div>
+                <CardDescription className="text-xs sm:text-sm">
+                  Calculated as saleCode × weight for approved items
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl sm:text-4xl font-serif font-bold text-foreground">
+                  {stats?.inStockValue === "-" ? "-" : `₹ ${stats?.inStockValue}`}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Recent Sales */}
