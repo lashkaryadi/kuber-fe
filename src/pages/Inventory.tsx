@@ -58,7 +58,7 @@ export default function Inventory() {
     dimensionUnit: "mm",
     certification: "",
     location: "",
-    status: "pending" as InventoryItem["status"],
+    status: "in_Stock" as InventoryItem["status"],
     description: "",
     images: [] as string[],
   });
@@ -226,7 +226,7 @@ category:
       dimensionUnit: "mm",
       certification: "",
       location: "",
-      status: "pending",
+      status: "in_stock",
       description: "",
       images: [],
     });
@@ -948,7 +948,7 @@ category:
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status === "sold" ? "in_stock" : formData.status}
-                onValueChange={(value: "pending" | "in_stock") =>
+                onValueChange={(value: "in_stock" | "pending"  ) =>
                   setFormData({ ...formData, status: value })
                 }
               >
@@ -956,8 +956,8 @@ category:
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="in_stock">In Stock</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1070,7 +1070,7 @@ category:
                   {selectedItem.images.map((img, idx) => (
                     <img
                       key={idx}
-                      src={img}
+                      src={`http://localhost:5001${img}`}
                       alt={`Item ${idx + 1}`}
                       className="aspect-square rounded-md object-cover border border-border"
                     />

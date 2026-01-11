@@ -10,7 +10,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
+  X,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Sold Items', href: '/sold', icon: ShoppingCart },
   { name: 'Audit Logs', href: '/audit-logs', icon: Shield, adminOnly: true },
   { name: 'Users', href: '/users', icon: Users, adminOnly: true },
+  { name: 'Settings', href: '/settings/company', icon: Settings, adminOnly: true },
 ];
 
 interface SidebarProps {

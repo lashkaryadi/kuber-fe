@@ -189,3 +189,29 @@
     border-radius: 3px;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  #invoice-container,
+  #invoice-container * {
+    visibility: visible;
+  }
+  
+  #invoice-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  @page {
+    margin: 0.5cm;
+  }
+}

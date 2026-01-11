@@ -777,6 +777,38 @@ async downloadImportReport(rows: any[]) {
 
     window.URL.revokeObjectURL(url);
   },
+
+  async uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const { data } = await apiClient.post("/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      return { data };
+    } catch (err: any) {
+      return {
+        error: err?.response?.data?.message || "Image upload failed",
+      };
+    }
+  },
+
+  async deleteImage(payload: {
+    imageUrl: string;
+    inventoryId: string;
+  }) {
+    try {
+      await apiClient.delete("/upload", { data: payload });
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Delete failed",
+      };
+    }
+  },
 };
 
 // // PREVIEW EXCEL
@@ -812,3 +844,71 @@ async downloadImportReport(rows: any[]) {
 // };
 
 export default api;
+// =======================
+// COMPANY SETTINGS API
+// =======================
+
+export interface CompanyPayload {
+  companyName: string;
+  gstNumber?: string;
+  taxRate?: number;
+  phone?: string;
+  email?: string;
+  address?: string;
+  logoUrl?: string;
+  signatureUrl?: string;
+
+}
+
+export const getCompany = async (): Promise<CompanyPayload | null> => {
+  try {
+    const res = await apiClient.get("/company");
+    return res.data;
+  } catch (err) {
+    return null;
+  }
+};
+
+export const saveCompany = async (
+  payload: CompanyPayload
+): Promise<boolean> => {
+  try {
+    await apiClient.post("/company", payload);
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
+
+export const uploadCompanyImage = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await apiClient.post("/upload-company/image", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  return res.data.url;
+};
+
+export const uploadInventoryImage = async (file: File) => {
+  const fd = new FormData();
+  fd.append("file", file);
+
+  const res = await apiClient.post(
+    "/inventory-upload/image",
+    fd,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
+  );
+
+  return res.data.url as string;
+}
+
+export const deleteInventoryImage = async (url: string) => {
+  await apiClient.delete("/inventory-upload/image", {
+    data: { url },
+  });
+}
+

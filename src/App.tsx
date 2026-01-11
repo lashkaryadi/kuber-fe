@@ -19,6 +19,7 @@ import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import AuditLogs from "./pages/AuditLogs";
 import VerifyEmail from "./pages/VerifyEmail";
+import SettingsCompany from "./pages/SettingsCompany";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,14 @@ const App = () => (
             <Route path="/packaging" element={<Packaging />} />
             <Route path="/packaging/:id" element={<PackagingDetails />} />
             <Route path="/invoice/:soldId" element={<InvoicePreview />} />
+            <Route
+              path="/settings/company"
+              element={
+                <ProtectedRoute>
+                  <SettingsCompany />
+                </ProtectedRoute>
+              }
+            />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
