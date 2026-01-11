@@ -102,72 +102,79 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
             <Gem className="h-8 w-8 text-secondary" />
           </div>
-          <h1 className="font-serif text-3xl font-bold">Kuber</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="font-serif text-3xl font-bold text-gray-800">Kuber</h1>
+          <p className="text-gray-600 text-sm">
             Gemstone Inventory System
           </p>
         </div>
 
         {/* Card */}
-        <div className="royal-card p-8 space-y-6">
-          <h2 className="font-serif text-xl font-semibold">Create Account</h2>
+        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-gray-100 transition-all duration-300 hover:shadow-2xl">
+          <h2 className="font-serif text-2xl font-semibold text-gray-800 text-center">Create Account</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <Label>Username</Label>
+              <Label className="text-sm font-medium text-gray-700">Username</Label>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
+                placeholder="Enter your username"
+                className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
               />
             </div>
 
             <div>
-              <Label>Email</Label>
+              <Label className="text-sm font-medium text-gray-700">Email Address</Label>
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
+                placeholder="Enter your email address"
+                className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
               />
             </div>
 
             <div>
-              <Label>Role</Label>
+              <Label className="text-sm font-medium text-gray-700">Role</Label>
               <Select
                 value={role}
                 onValueChange={(value) => setRole(value as "admin" | "staff")}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200">
+                  <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Password */}
             <div>
-              <Label>Password</Label>
+              <Label className="text-sm font-medium text-gray-700">Password</Label>
               <div className="relative">
                 <Input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={loading}
+                  placeholder="Enter your password"
+                  className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 pr-10 rounded-xl transition-all duration-200"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -176,18 +183,20 @@ export default function SignupPage() {
 
             {/* Confirm */}
             <div>
-              <Label>Confirm Password</Label>
+              <Label className="text-sm font-medium text-gray-700">Confirm Password</Label>
               <div className="relative">
                 <Input
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={loading}
+                  placeholder="Confirm your password"
+                  className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 pr-10 rounded-xl transition-all duration-200"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
                 >
                   {showConfirmPassword ? (
                     <EyeOff size={16} />
@@ -198,7 +207,7 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <Button className="w-full" disabled={loading}>
+            <Button className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-white font-medium rounded-xl shadow-md transition-all duration-300 transform hover:-translate-y-0.5" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -210,11 +219,11 @@ export default function SignupPage() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-gray-600">
             Already have an account?{" "}
             <button
               onClick={() => navigate("/login")}
-              className="text-primary font-medium hover:underline"
+              className="text-primary font-medium hover:text-primary/80 transition-colors hover:underline"
             >
               Sign in
             </button>

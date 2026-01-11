@@ -124,7 +124,7 @@
 
 @layer components {
   .royal-card {
-    @apply bg-card border border-border rounded-md shadow-sm;
+    @apply bg-card border border-border rounded-2xl shadow-xl transition-all duration-300 hover:shadow-2xl;
   }
 
   .royal-header {
@@ -136,7 +136,7 @@
   }
 
   .stat-card {
-    @apply royal-card p-4 sm:p-6 transition-all duration-200 hover:shadow-md hover:border-secondary/30;
+    @apply royal-card p-4 sm:p-6 transition-all duration-300 hover:shadow-2xl hover:border-secondary/30;
   }
 
   .table-header {
