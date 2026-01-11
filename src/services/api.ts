@@ -96,6 +96,7 @@ export interface AuditLog {
 ======================== */
 const apiClient = axios.create({
   baseURL: `${BASE_URL}/api`,
+  withCredentials: true, // ✅ REQUIRED FOR COOKIES
 });
 
 /* =======================
@@ -108,6 +109,68 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+let isRefreshing = false;
+let failedQueue: any[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
+
+apiClient.interceptors.response.use(
+  res => res,
+  async error => {
+    const originalRequest = error.config;
+
+    // ❌ Do NOT refresh for auth routes
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url.includes("/auth/login") &&
+      !originalRequest.url.includes("/auth/refresh")
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(token => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          })
+          .catch(err => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { data } = await apiClient.post("/auth/refresh");
+
+        api.setToken(data.accessToken);
+
+        apiClient.defaults.headers.Authorization =
+          `Bearer ${data.accessToken}`;
+
+        processQueue(null, data.accessToken);
+
+        return apiClient(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        api.logout();
+        window.location.href = "/login";
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 /* =======================
    API
@@ -134,6 +197,12 @@ const api = {
       email,
       password,
     });
+
+    if (data.accessToken) {
+      api.setToken(data.accessToken);
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+
     return data;
   },
 
@@ -144,6 +213,16 @@ const api = {
     role: "admin" | "staff";
   }) {
     const { data } = await apiClient.post("/auth/register", payload);
+    return data;
+  },
+
+  async verifyEmailOtp(payload: { email: string; otp: string }) {
+    const { data } = await apiClient.post("/auth/verify-email", payload);
+    return data;
+  },
+
+  async resendEmailOtp(payload: { email: string }) {
+    const { data } = await apiClient.post("/auth/resend-otp", payload);
     return data;
   },
 

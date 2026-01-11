@@ -21,7 +21,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<"admin" | "staff">("staff");
+  const [role, setRole] = useState<"admin" | "staff">("admin");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -76,11 +76,19 @@ export default function SignupPage() {
           variant: "destructive",
         });
       } else {
-        toast({
-          title: "Account created 🎉",
-          description: "You can now login",
-        });
-        navigate("/login");
+        if (res.requiresVerification) {
+          toast({
+            title: "Verification Required",
+            description: res.message,
+          });
+          navigate("/verify-email", { state: { email } });
+        } else {
+          toast({
+            title: "Account created 🎉",
+            description: "You can now login",
+          });
+          navigate("/login");
+        }
       }
     } catch {
       toast({
@@ -141,7 +149,6 @@ export default function SignupPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="staff">Staff</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>

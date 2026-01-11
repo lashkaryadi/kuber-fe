@@ -36,7 +36,7 @@ export default function Users() {
     username: "",
     email: "",
     password: "",
-    role: "staff" as "admin" | "staff",
+    role: "staff" ,
   });
 
   const [saving, setSaving] = useState(false);
@@ -112,14 +112,12 @@ export default function Users() {
       ? {
           username: formData.username,
           email: formData.email,
-          role: formData.role,
           ...(formData.password && { password: formData.password }),
         }
       : {
           username: formData.username,
           email: formData.email,
           password: formData.password,
-          role: formData.role,
         };
 
     const response = selectedUser
@@ -314,16 +312,12 @@ export default function Users() {
             <Label>Role</Label>
             <Select
               value={formData.role}
-              onValueChange={(v: "admin" | "staff") =>
-                setFormData({ ...formData, role: v })
-              }
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="staff" disabled>Staff</SelectItem>
               </SelectContent>
             </Select>
           </div>

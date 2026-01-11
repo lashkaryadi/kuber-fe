@@ -5,7 +5,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; requiresVerification?: boolean; email?: string }>;
   logout: () => void;
 }
 
@@ -31,19 +31,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      
       const data = await api.login(email, password);
 
-      api.setToken(data.token);
+      api.setToken(data.accessToken);
       setUser(data.user);
       localStorage.setItem('user', JSON.stringify(data.user));
 
       return { success: true };
-      
+
     } catch (err: any) {
+      const errorResponse = err?.response?.data;
+
+      if (errorResponse?.requiresVerification) {
+        return {
+          success: false,
+          requiresVerification: true,
+          email: errorResponse.email,
+        };
+      }
+
       return {
         success: false,
-        error: err?.response?.data?.message || 'Login failed',
+        error: errorResponse?.message || 'Login failed',
       };
     }
   };

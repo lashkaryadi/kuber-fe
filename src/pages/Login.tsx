@@ -37,20 +37,42 @@ localStorage.setItem("user", JSON.stringify(res.user));
 
     setLoading(true);
 
-    const result = await login(email, password);
+    try {
+      const result = await login(email, password);
 
-    if (result.success) {
-      toast({
-        title: 'Welcome',
-        description: 'You have successfully logged in',
-      });
-      navigate('/dashboard');
-    } else {
-      toast({
-        title: 'Login Failed',
-        description: result.error || 'Invalid credentials',
-        variant: 'destructive',
-      });
+      if (result.success) {
+        toast({
+          title: 'Welcome',
+          description: 'You have successfully logged in',
+        });
+        navigate('/dashboard');
+      } else {
+        // Check if it's an email verification error
+        if (result.requiresVerification) {
+          navigate("/verify-email", {
+            state: { email: result.email },
+          });
+        } else {
+          toast({
+            title: 'Login Failed',
+            description: result.error || 'Invalid credentials',
+            variant: 'destructive',
+          });
+        }
+      }
+    } catch (err: any) {
+      // Handle direct API errors (not through auth context)
+      if (err?.response?.data?.requiresVerification) {
+        navigate("/verify-email", {
+          state: { email: err.response.data.email },
+        });
+      } else {
+        toast({
+          title: 'Login Failed',
+          description: err.response?.data?.message || 'Invalid credentials',
+          variant: 'destructive',
+        });
+      }
     }
 
     setLoading(false);

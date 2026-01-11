@@ -18,6 +18,7 @@ import SoldItems from "./pages/SoldItems";
 import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import AuditLogs from "./pages/AuditLogs";
+import VerifyEmail from "./pages/VerifyEmail";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route
               path="/dashboard"
               element={
