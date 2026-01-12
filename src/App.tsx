@@ -19,7 +19,7 @@ import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import AuditLogs from "./pages/AuditLogs";
 import VerifyEmail from "./pages/VerifyEmail";
-import SettingsCompany from "./pages/SettingsCompany";
+import SettingsCompany from "@/pages/SettingsCompany";
 
 const queryClient = new QueryClient();
 
@@ -28,79 +28,72 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <SearchProvider>
-          
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/inventory"
-              element={
-                <ProtectedRoute>
-                  <Inventory />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/categories"
-              element={
-                <ProtectedRoute>
-                  <Categories />
-                </ProtectedRoute>
-              }
-            />
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/inventory"
+                element={
+                  <ProtectedRoute>
+                    <Inventory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/categories"
+                element={
+                  <ProtectedRoute>
+                    <Categories />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/sold"
-              element={
-                <ProtectedRoute>
-                  <SoldItems />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/users"
-              element={
-                <ProtectedRoute>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/audit-logs"
-              element={
-                <ProtectedRoute>
-                  <AuditLogs />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/packaging" element={<Packaging />} />
-            <Route path="/packaging/:id" element={<PackagingDetails />} />
-            <Route path="/invoice/:soldId" element={<InvoicePreview />} />
-            <Route
-              path="/settings/company"
-              element={
-                <ProtectedRoute>
-                  <SettingsCompany />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/sold"
+                element={
+                  <ProtectedRoute>
+                    <SoldItems />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <Users />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/settings/company" element={<SettingsCompany />} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+              <Route
+                path="/audit-logs"
+                element={
+                  <ProtectedRoute>
+                    <AuditLogs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/packaging" element={<Packaging />} />
+              <Route path="/packaging/:id" element={<PackagingDetails />} />
+              <Route path="/invoice/:soldId" element={<InvoicePreview />} />
+
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
         </SearchProvider>
       </AuthProvider>
     </TooltipProvider>

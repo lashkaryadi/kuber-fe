@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "@/services/api";
+import api, { getCompany } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Download, Printer } from "lucide-react";
 
@@ -14,7 +14,7 @@ export default function InvoicePreview() {
   useEffect(() => {
     if (!soldId) return;
 
-    Promise.all([api.getInvoiceBySold(soldId), api.getCompany()])
+    Promise.all([api.getInvoiceBySold(soldId), getCompany()])
       .then(([invoiceRes, companyRes]) => {
         setInvoice(invoiceRes);
         setCompany(companyRes);
