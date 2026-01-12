@@ -30,12 +30,13 @@ export default function InvoicePreview() {
     window.print();
   };
 
-  const handleDownloadPDF = () => {
-    if (invoice?._id) {
-      window.open(
-        `http://localhost:5001/api/invoices/${invoice._id}/pdf`,
-        "_blank"
-      );
+  const handleDownloadPDF = async () => {
+    if (!invoice?._id) return;
+
+    try {
+      await api.downloadInvoicePDF(invoice._id);
+    } catch (error) {
+      alert("Failed to download invoice PDF");
     }
   };
 
@@ -69,10 +70,13 @@ export default function InvoicePreview() {
 
   const formatCurrency = (amount: number) => {
     const symbols: any = { USD: "$", EUR: "€", GBP: "£", INR: "₹" };
-    return `${symbols[currency] || currency} ${amount.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return `${symbols[currency] || currency} ${amount.toLocaleString(
+      undefined,
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    )}`;
   };
 
   return (
@@ -128,22 +132,26 @@ export default function InvoicePreview() {
               {/* Invoice Details */}
               <div className="text-right">
                 <div className="bg-primary/10 px-6 py-3 rounded-lg mb-4">
-                  <h2 className="text-2xl font-bold text-primary">TAX INVOICE</h2>
+                  <h2 className="text-2xl font-bold text-primary">
+                    TAX INVOICE
+                  </h2>
                 </div>
                 <div className="space-y-1 text-sm">
                   <p className="font-semibold">
-                    Invoice No: <span className="text-primary">{invoice.invoiceNumber}</span>
+                    Invoice No:{" "}
+                    <span className="text-primary">
+                      {invoice.invoiceNumber}
+                    </span>
                   </p>
                   <p>
                     Date:{" "}
-                    {new Date(invoice.invoiceDate || invoice.soldItem.soldDate).toLocaleDateString(
-                      "en-IN",
-                      {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      }
-                    )}
+                    {new Date(
+                      invoice.invoiceDate || invoice.soldItem.soldDate
+                    ).toLocaleDateString("en-IN", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
                   </p>
                 </div>
               </div>
@@ -208,7 +216,9 @@ export default function InvoicePreview() {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal:</span>
-                  <span className="font-medium">{formatCurrency(subtotal)}</span>
+                  <span className="font-medium">
+                    {formatCurrency(subtotal)}
+                  </span>
                 </div>
 
                 {taxRate > 0 && (
@@ -217,20 +227,26 @@ export default function InvoicePreview() {
                       <span className="text-gray-600">
                         CGST ({cgstRate.toFixed(2)}%):
                       </span>
-                      <span className="font-medium">{formatCurrency(cgstAmount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(cgstAmount)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">
                         SGST ({sgstRate.toFixed(2)}%):
                       </span>
-                      <span className="font-medium">{formatCurrency(sgstAmount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(sgstAmount)}
+                      </span>
                     </div>
                   </>
                 )}
 
                 <div className="border-t-2 border-gray-200 pt-3">
                   <div className="flex justify-between">
-                    <span className="text-lg font-bold text-gray-900">Total:</span>
+                    <span className="text-lg font-bold text-gray-900">
+                      Total:
+                    </span>
                     <span className="text-lg font-bold text-primary">
                       {formatCurrency(total)}
                     </span>
@@ -291,7 +307,8 @@ export default function InvoicePreview() {
               Thank you for your business!
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              This is a computer-generated invoice and does not require a physical signature.
+              This is a computer-generated invoice and does not require a
+              physical signature.
             </p>
           </div>
         </div>

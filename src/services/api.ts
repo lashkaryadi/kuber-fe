@@ -724,6 +724,31 @@ async downloadImportReport(rows: any[]) {
 
   /* -------- INVOICES -------- */
 
+  async downloadInvoicePDF(invoiceId: string) {
+  const response = await apiClient.get(
+    `/invoices/${invoiceId}/pdf`,
+    {
+      responseType: "blob", // 🔥 IMPORTANT
+    }
+  );
+
+  // Create downloadable link
+  const blob = new Blob([response.data], {
+    type: "application/pdf",
+  });
+
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `invoice-${invoiceId}.pdf`; // you can improve name later
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+},
+
   async getInvoiceBySold(soldId: string) {
     const { data } = await apiClient.get(`/invoices/sold/${soldId}`);
     return data;
