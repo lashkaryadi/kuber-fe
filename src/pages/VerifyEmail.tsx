@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { Gem } from "lucide-react";
+
 
 export default function VerifyEmail() {
   const { state } = useLocation();

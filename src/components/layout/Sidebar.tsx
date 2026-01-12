@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Inventory', href: '/inventory', icon: Gem },
   { name: 'Categories', href: '/categories', icon: FolderOpen },
   { name: 'Sold Items', href: '/sold', icon: ShoppingCart },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Audit Logs', href: '/audit-logs', icon: Shield, adminOnly: true },
   { name: 'Users', href: '/users', icon: Users, adminOnly: true },
   { name: 'Settings', href: '/settings/company', icon: Settings, adminOnly: true },

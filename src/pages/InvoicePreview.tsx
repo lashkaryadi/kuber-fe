@@ -5,26 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Download, Printer } from "lucide-react";
 
 export default function InvoicePreview() {
-  const { soldId } = useParams();
+  const { soldId, id } = useParams<{ soldId?: string; id?: string }>();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState<any>(null);
   const [company, setCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!soldId) return;
+    if (!soldId && !id) return;
 
-    Promise.all([api.getInvoiceBySold(soldId), getCompany()])
-      .then(([invoiceRes, companyRes]) => {
+    const fetchInvoice = async () => {
+      try {
+        let invoiceRes;
+        if (id) {
+          // New format: fetch by invoice ID
+          invoiceRes = await api.getInvoiceById(id);
+        } else {
+          // Old format: fetch by sold ID
+          invoiceRes = await api.getInvoiceBySold(soldId);
+        }
+
+        const companyRes = await getCompany();
+
         setInvoice(invoiceRes);
         setCompany(companyRes);
-      })
-      .catch(() => {
+      } catch (error) {
         setInvoice(null);
         setCompany(null);
-      })
-      .finally(() => setLoading(false));
-  }, [soldId]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInvoice();
+  }, [soldId, id]);
 
   const handlePrint = () => {
     window.print();
@@ -57,16 +71,28 @@ export default function InvoicePreview() {
     );
   }
 
-  const item = invoice.soldItem.inventoryItem;
-  const price = invoice.soldItem.price || 0;
+  // Determine if this is a new multi-item invoice or old single-item invoice
+  const items = invoice.items || [];
   const taxRate = company?.taxRate || 0;
   const cgstRate = taxRate / 2;
   const sgstRate = taxRate / 2;
-  const subtotal = price;
-  const cgstAmount = (subtotal * cgstRate) / 100;
-  const sgstAmount = (subtotal * sgstRate) / 100;
-  const total = subtotal + cgstAmount + sgstAmount;
-  const currency = invoice.soldItem.currency || "INR";
+
+  // Use invoice values directly for new format, fallback to old format
+  let subtotal = invoice.subtotal || 0;
+
+  // If there are no items but there are soldItems, calculate from soldItems
+  if (items.length === 0 && invoice.soldItems && invoice.soldItems.length > 0) {
+    subtotal = invoice.soldItems.reduce((sum: number, soldItem: any) => {
+      return sum + (soldItem.totalPrice || soldItem.price || 0);
+    }, 0);
+  } else {
+    subtotal = invoice.subtotal || (invoice.soldItem?.price || 0);
+  }
+
+  const cgstAmount = invoice.cgstAmount || ((subtotal * cgstRate) / 100);
+  const sgstAmount = invoice.sgstAmount || ((subtotal * sgstRate) / 100);
+  const total = invoice.totalAmount || (subtotal + cgstAmount + sgstAmount);
+  const currency = invoice.currency || invoice.soldItem?.currency || "INR";
 
   const formatCurrency = (amount: number) => {
     const symbols: any = { USD: "$", EUR: "€", GBP: "£", INR: "₹" };
@@ -146,7 +172,7 @@ export default function InvoicePreview() {
                   <p>
                     Date:{" "}
                     {new Date(
-                      invoice.invoiceDate || invoice.soldItem.soldDate
+                      invoice.invoiceDate || invoice.soldItem?.soldDate
                     ).toLocaleDateString("en-IN", {
                       year: "numeric",
                       month: "long",
@@ -165,7 +191,7 @@ export default function InvoicePreview() {
                 Bill To
               </h3>
               <p className="text-lg font-semibold text-gray-800">
-                {invoice.soldItem.buyer || "Walk-in Customer"}
+                {invoice.buyer || invoice.soldItem?.buyer || "Walk-in Customer"}
               </p>
             </div>
           </div>
@@ -191,20 +217,60 @@ export default function InvoicePreview() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  <tr>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                      {item.serialNumber}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {item.category?.name || "-"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 text-right">
-                      {item.weight} {item.weightUnit}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
-                      {formatCurrency(subtotal)}
-                    </td>
-                  </tr>
+                  {items.length > 0 ? (
+                    // New format: multiple items
+                    items.map((item: any, index: number) => (
+                      <tr key={index}>
+                        <td className="px-6 py-4">{item.serialNumber}</td>
+                        <td className="px-6 py-4">{item.category}</td>
+                        <td className="px-6 py-4 text-right">
+                          {item.weight} {item.weightUnit}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {formatCurrency(item.amount)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : invoice.soldItems && invoice.soldItems.length > 0 ? (
+                    // New format: multiple sold items per invoice
+                    invoice.soldItems.map((soldItem: any) => (
+                      <tr key={soldItem._id}>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                          {soldItem.inventoryItem?.serialNumber}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {soldItem.inventoryItem?.category?.name || "-"}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-gray-600 text-right">
+                          {soldItem.soldWeight} {soldItem.inventoryItem?.weightUnit}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+                          {formatCurrency(
+                            soldItem.totalPrice || soldItem.price || 0
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    // Old format: single item
+                    <tr>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {invoice.soldItem?.inventoryItem?.serialNumber}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {invoice.soldItem?.inventoryItem?.category?.name || "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 text-right">
+                        {invoice.soldItem?.inventoryItem?.weight} {invoice.soldItem?.inventoryItem?.weightUnit}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 text-right">
+                        {formatCurrency(subtotal)}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

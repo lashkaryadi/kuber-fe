@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-type Status = 'pending' | 'sold' | 'in_stock';
+type Status = 'pending' | 'sold' | 'in_stock' | 'partially_sold';
 
 interface StatusBadgeProps {
   status: Status;
@@ -11,6 +11,8 @@ const statusStyles: Record<Status, string> = {
   // approved: 'bg-success/10 text-success border-success/20',
   in_stock: 'bg-success/10 text-success border-success/20', // Same as approved
   sold: 'bg-muted text-muted-foreground border-border',
+  // ✅ NEW
+  partially_sold: 'bg-blue-100 text-blue-800 border-blue-200',
 };
 
 const statusLabels: Record<Status, string> = {
@@ -18,6 +20,8 @@ const statusLabels: Record<Status, string> = {
   // approved: 'In Stock',
   in_stock: 'In Stock', // Same as approved
   sold: 'Sold',
+  // ✅ NEW
+  partially_sold: 'Partially Sold',
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {

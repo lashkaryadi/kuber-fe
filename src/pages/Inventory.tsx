@@ -32,7 +32,14 @@ export default function Inventory() {
 
   const [searchText, setSearchText] = useState("");
   const [sortKey, setSortKey] = useState<
-    "serialNumber" | "pieces" | "purchaseCode" | "saleCode" | "weight" | null
+    | "serialNumber"
+    | "totalPieces"
+    | "availablePieces"
+    | "totalWeight"
+    | "availableWeight"
+    | "purchaseCode"
+    | "saleCode"
+    | null
   >(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const { query: globalQuery } = useSearch(); // Keep global search for navigation
@@ -58,7 +65,7 @@ export default function Inventory() {
     dimensionUnit: "mm",
     certification: "",
     location: "",
-    status: "in_Stock" as InventoryItem["status"],
+    status: "in_stock" as InventoryItem["status"],
     description: "",
     images: [] as string[],
   });
@@ -71,6 +78,8 @@ export default function Inventory() {
   const [markAsSoldModalOpen, setMarkAsSoldModalOpen] = useState(false);
   const [itemToMarkAsSold, setItemToMarkAsSold] = useState<InventoryItem | null>(null);
   const [soldForm, setSoldForm] = useState({
+    soldPieces: "",
+    soldWeight: "",
     price: "",
     currency: "USD",
     soldDate: new Date().toISOString().split("T")[0],
@@ -81,6 +90,8 @@ export default function Inventory() {
   const markAsSoldFromInventory = (item: InventoryItem) => {
     setItemToMarkAsSold(item);
     setSoldForm({
+      soldPieces: "",
+      soldWeight: "",
       price: "",
       currency: "USD",
       soldDate: new Date().toISOString().split("T")[0],
@@ -103,10 +114,51 @@ export default function Inventory() {
       return;
     }
 
+    if (!soldForm.soldPieces || Number(soldForm.soldPieces) <= 0) {
+      toast({
+        title: "Invalid pieces",
+        description: "Enter a valid number of pieces to sell",
+        variant: "destructive",
+      });
+      setSelling(false);
+      return;
+    }
+
+    if (!soldForm.soldWeight || Number(soldForm.soldWeight) <= 0) {
+      toast({
+        title: "Invalid weight",
+        description: "Enter a valid weight to sell",
+        variant: "destructive",
+      });
+      setSelling(false);
+      return;
+    }
+
     if (!soldForm.price || Number(soldForm.price) <= 0) {
       toast({
         title: "Invalid price",
-        description: "Enter a valid sale price",
+        description: "Enter a valid total price",
+        variant: "destructive",
+      });
+      setSelling(false);
+      return;
+    }
+
+    // Validate against available inventory
+    if (Number(soldForm.soldPieces) > (itemToMarkAsSold.availablePieces || 0)) {
+      toast({
+        title: "Invalid quantity",
+        description: "Sold pieces exceed available stock",
+        variant: "destructive",
+      });
+      setSelling(false);
+      return;
+    }
+
+    if (Number(soldForm.soldWeight) > (itemToMarkAsSold.availableWeight || 0)) {
+      toast({
+        title: "Invalid quantity",
+        description: "Sold weight exceeds available stock",
         variant: "destructive",
       });
       setSelling(false);
@@ -115,7 +167,9 @@ export default function Inventory() {
 
     const response = await api.markAsSold({
       inventoryId: itemToMarkAsSold.id,
-      price: Number(soldForm.price),
+      soldPieces: Number(soldForm.soldPieces),
+      soldWeight: Number(soldForm.soldWeight),
+      price: Number(soldForm.price), // Use the total price directly
       currency: soldForm.currency,
       soldDate: soldForm.soldDate,
       buyer: soldForm.buyer || undefined,
@@ -144,7 +198,13 @@ export default function Inventory() {
 
   // Pagination state
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState<any>(null);
+  type PaginationMeta = {
+    total: number;
+    page: number;
+    pages: number;
+  };
+
+  const [meta, setMeta] = useState<PaginationMeta | null>(null);
 
   // Effect to reset page to 1 when filters change
   useEffect(() => {
@@ -240,18 +300,21 @@ category:
       category:
         typeof item.category === "object" ? item.category.id : item.category,
 
-      pieces: item.pieces.toString(),
-      weight: item.weight.toString(),
+      // ✅ Use new fields with fallback to old ones
+      pieces: (item.availablePieces ?? item.totalPieces ?? item.pieces ?? "").toString(),
+      weight: (item.availableWeight ?? item.totalWeight ?? item.weight ?? "").toString(),
       weightUnit: item.weightUnit,
-      purchaseCode: "",
-      saleCode: "",
+
+      purchaseCode: item.purchaseCode || "",
+      saleCode: item.saleCode || "",
+
       length: item.dimensions?.length?.toString() || "",
       width: item.dimensions?.width?.toString() || "",
       height: item.dimensions?.height?.toString() || "",
       dimensionUnit: item.dimensions?.unit || "mm",
 
       certification: item.certification || "",
-      location: item.location,
+      location: item.location || "",
       status: item.status,
       description: item.description || "",
       images: item.images || [],
@@ -284,19 +347,26 @@ category:
     const payload = {
       serialNumber: formData.serialNumber,
       category: formData.category,
-      pieces: parseInt(formData.pieces, 10),
-      weight: parseFloat(formData.weight),
+
+      // ✅ Backend expects these new fields
+      totalPieces: Number(formData.pieces),
+      availablePieces: Number(formData.pieces), // Initially available = total
+      totalWeight: Number(formData.weight),
+      availableWeight: Number(formData.weight), // Initially available = total
       weightUnit: formData.weightUnit,
+
       purchaseCode: formData.purchaseCode,
       saleCode: formData.saleCode,
+
       dimensions: {
         length: Number(formData.length) || undefined,
         width: Number(formData.width) || undefined,
         height: Number(formData.height) || undefined,
         unit: formData.dimensionUnit,
       },
+
       certification: formData.certification || undefined,
-      location: formData.location,
+      location: formData.location || undefined,
       status: formData.status,
       description: formData.description || undefined,
       images: formData.images.length > 0 ? formData.images : undefined,
@@ -368,10 +438,12 @@ category:
 
       setDeleteModalOpen(false);
       fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+
       toast({
         title: "Error",
-        description: err?.response?.data?.message || "Failed to delete item",
+        description: error?.response?.data?.message || "Failed to delete item",
         variant: "destructive",
       });
     }
@@ -380,8 +452,13 @@ category:
   type ExcelPreviewRow = {
     serialNumber?: string;
     category?: string;
-    pieces?: number;
-    weight?: number;
+    pieces?: number;  // For backward compatibility
+    weight?: number;  // For backward compatibility
+    totalPieces?: number;
+    availablePieces?: number;
+    totalWeight?: number;
+    availableWeight?: number;
+    weightUnit?: string;
     purchaseCode?: string;
     saleCode?: string;
     status?: string;
@@ -460,30 +537,31 @@ category:
       header: (
         <button
           onClick={() => {
-            setSortKey("pieces");
+            setSortKey("availablePieces");
             setSortDir(sortDir === "asc" ? "desc" : "asc");
           }}
           className="flex items-center gap-1"
         >
-          Pieces {sortKey === "pieces" && (sortDir === "asc" ? "↑" : "↓")}
+          Available Pieces {sortKey === "availablePieces" && (sortDir === "asc" ? "↑" : "↓")}
         </button>
       ),
-      render: (item) => item.pieces,
+      render: (item) => item.availablePieces ?? item.totalPieces ?? item.pieces,
     },
     {
       key: "weight",
       header: (
         <button
           onClick={() => {
-            setSortKey("weight");
+            setSortKey("availableWeight");
             setSortDir(sortDir === "asc" ? "desc" : "asc");
           }}
           className="flex items-center gap-1"
         >
-          Weight {sortKey === "weight" && (sortDir === "asc" ? "↑" : "↓")}
+          Available Weight {sortKey === "availableWeight" && (sortDir === "asc" ? "↑" : "↓")}
         </button>
       ),
-      render: (item) => `${item.weight} ${item.weightUnit}`,
+      render: (item) =>
+        `${item.availableWeight ?? item.totalWeight ?? item.weight} ${item.weightUnit}`,
     },
     {
       key: "purchaseCode",
@@ -1015,17 +1093,21 @@ category:
               <div>
                 <Label className="text-muted-foreground">Category</Label>
                 <p className="font-medium">
-                  {selectedItem.category?.name ?? "Deleted"}
-                </p>
+  {typeof selectedItem.category === "object"
+    ? selectedItem.category.name
+    : "Deleted"}
+</p>
+
               </div>
               <div>
                 <Label className="text-muted-foreground">Pieces</Label>
-                <p className="font-medium">{selectedItem.pieces}</p>
+                <p className="font-medium">{selectedItem.availablePieces ?? selectedItem.totalPieces ?? selectedItem.pieces}</p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Weight</Label>
                 <p className="font-medium">
-                  {selectedItem.weight} {selectedItem.weightUnit}
+                  {selectedItem.availableWeight ?? selectedItem.totalWeight ?? selectedItem.weight}{" "}
+                  {selectedItem.weightUnit}
                 </p>
               </div>
               <div>
@@ -1147,12 +1229,59 @@ category:
           <form onSubmit={handleMarkAsSoldSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Item</Label>
-              <p className="font-medium">{itemToMarkAsSold.serialNumber} — {itemToMarkAsSold.category?.name}</p>
+<p className="font-medium">
+  {itemToMarkAsSold.serialNumber} —{" "}
+  {typeof itemToMarkAsSold.category === "object"
+    ? itemToMarkAsSold.category.name
+    : "Deleted"}
+</p>
+            </div>
+
+            {/* Display available stock */}
+            {itemToMarkAsSold && (
+              <div className="text-sm text-muted-foreground mb-2">
+                Available:
+                <span className="ml-2 font-medium">
+                  {itemToMarkAsSold.availablePieces} pcs | {itemToMarkAsSold.availableWeight} {itemToMarkAsSold.weightUnit}
+                </span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="soldPieces">Sold Pieces *</Label>
+                <Input
+                  id="soldPieces"
+                  type="number"
+                  value={soldForm.soldPieces}
+                  onChange={(e) =>
+                    setSoldForm({ ...soldForm, soldPieces: e.target.value })
+                  }
+                  placeholder="Pieces to sell"
+                  required
+                  className="flex-1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="soldWeight">Sold Weight *</Label>
+                <Input
+                  id="soldWeight"
+                  type="number"
+                  step="0.01"
+                  value={soldForm.soldWeight}
+                  onChange={(e) =>
+                    setSoldForm({ ...soldForm, soldWeight: e.target.value })
+                  }
+                  placeholder="Weight to sell"
+                  required
+                  className="flex-1"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="price">Sale Price *</Label>
+                <Label htmlFor="price">Total Price *</Label>
                 <div className="flex gap-2">
                   <Select
                     value={soldForm.currency}

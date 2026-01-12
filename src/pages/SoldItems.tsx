@@ -28,14 +28,18 @@ export default function SoldItems() {
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedInventory, setSelectedInventory] = useState<InventoryItem | null>(null);
   const [formData, setFormData] = useState({
     inventoryId: "",
+    soldPieces: "",
+    soldWeight: "",
     price: "",
     currency: "USD",
     soldDate: new Date().toISOString().split("T")[0],
     buyer: "",
   });
   const [saving, setSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Local search and sort state for Sold Items
   const [searchText, setSearchText] = useState("");
@@ -45,6 +49,7 @@ export default function SoldItems() {
   // Pagination state
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState<any>(null);
+
 
   useEffect(() => {
     fetchData();
@@ -98,6 +103,8 @@ export default function SoldItems() {
   const openModal = () => {
     setFormData({
       inventoryId: "",
+      soldPieces: "",
+      soldWeight: "",
       price: "",
       currency: "USD",
       soldDate: new Date().toISOString().split("T")[0],
@@ -169,6 +176,8 @@ export default function SoldItems() {
 
     setFormData({
       inventoryId: item.inventoryItem?.id ?? "-", // not editable
+      soldPieces: String(item.soldPieces || ""),
+      soldWeight: String(item.soldWeight || ""),
       price: String(item.price),
       currency: item.currency,
       soldDate: item.soldDate.split("T")[0],
@@ -183,6 +192,39 @@ export default function SoldItems() {
       toast({
         title: "Invalid price",
         description: "Enter a valid sale price",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.soldPieces || Number(formData.soldPieces) <= 0) {
+      toast({
+        title: "Invalid pieces",
+        description: "Enter a valid number of pieces to sell",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.soldWeight || Number(formData.soldWeight) <= 0) {
+      toast({
+        title: "Invalid weight",
+        description: "Enter a valid weight to sell",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate against available inventory
+    const exceedsPieces = Number(formData.soldPieces) > (selectedInventory?.pieces || 0);
+    const exceedsWeight = Number(formData.soldWeight) > (selectedInventory?.weight || 0);
+
+    if (exceedsPieces || exceedsWeight) {
+      toast({
+        title: "Invalid quantity",
+        description: exceedsPieces
+          ? "Sold pieces exceed available stock"
+          : "Sold weight exceeds available stock",
         variant: "destructive",
       });
       return;
@@ -209,6 +251,8 @@ export default function SoldItems() {
           })
         : await api.markAsSold({
             inventoryId: formData.inventoryId,
+            soldPieces: Number(formData.soldPieces),
+            soldWeight: Number(formData.soldWeight),
             price: Number(formData.price),
             currency: formData.currency,
             soldDate: formData.soldDate,
@@ -395,6 +439,35 @@ export default function SoldItems() {
 
   const columns: Column<SoldItem>[] = [
     {
+      key: "checkbox",
+      header: (
+        <input
+          type="checkbox"
+          checked={selectedIds.length === soldItems.length && soldItems.length > 0}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedIds(soldItems.map(item => item.id));
+            } else {
+              setSelectedIds([]);
+            }
+          }}
+        />
+      ),
+      render: (item) => (
+        <input
+          type="checkbox"
+          checked={selectedIds.includes(item.id)}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedIds([...selectedIds, item.id]);
+            } else {
+              setSelectedIds(selectedIds.filter(id => id !== item.id));
+            }
+          }}
+        />
+      ),
+    },
+    {
       key: "serialNumber",
       header: (
         <button
@@ -419,22 +492,14 @@ export default function SoldItems() {
       render: (item) => item.inventoryItem.category?.name ?? "-",
     },
     {
-      key: "weight",
-      header: (
-        <button
-          onClick={() => {
-            setSortKey("weight");
-            setSortDir(sortDir === "asc" ? "desc" : "asc");
-          }}
-          className="flex items-center gap-1"
-        >
-          Weight {sortKey === "weight" && (sortDir === "asc" ? "↑" : "↓")}
-        </button>
-      ),
-      render: (item) =>
-        `${item.inventoryItem?.weight ?? "-"} ${
-          item.inventoryItem?.weightUnit ?? "-"
-        }`,
+      key: "soldPieces",
+      header: "Sold Pieces",
+      render: (item) => item.soldPieces ?? "-",
+    },
+    {
+      key: "soldWeight",
+      header: "Sold Weight",
+      render: (item) => `${item.soldWeight ?? "-"} ${item.inventoryItem?.weightUnit ?? "-"}`,
     },
     {
       key: "price",
@@ -495,8 +560,7 @@ export default function SoldItems() {
             variant="ghost"
             size="icon"
             onClick={() => openEditModal(item)}
-            // title="Edit sale"
-            title={editMode ? "Edit Sold Item" : "Mark Item as Sold"}
+            title="Edit Sale"
           >
             <Edit className=" h-4 w-4" />
           </Button>
@@ -506,17 +570,26 @@ export default function SoldItems() {
             size="icon"
             onClick={() => handleUndo(item.id)}
             title="Undo Sale"
-                        className="h-10 w-10 text-destructive hover:text-destructive"
-
+            className="h-10 w-10 text-destructive hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-          
+
 
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.open(`/invoice/${item.id}`, "_blank")}
+            onClick={async () => {
+              try {
+                // Try to get the invoice by sold ID first
+                const invoice = await api.getInvoiceBySold(item.id);
+                window.open(`/invoice-preview/${invoice._id}`, "_blank");
+              } catch (error) {
+                // Fallback to old route if invoice doesn't exist yet
+                window.open(`/invoice/${item.id}`, "_blank");
+              }
+            }}
+            title="View Invoice"
           >
             <FileText className="h-4 w-4" />
           </Button>
@@ -538,6 +611,15 @@ export default function SoldItems() {
               onClick={() => api.exportSoldItemsExcel()}
             >
               Export Excel
+            </Button>
+            <Button
+              disabled={selectedIds.length === 0}
+              onClick={async () => {
+                const invoice = await api.generateBulkInvoice({ soldIds: selectedIds });
+                window.open(`/invoice-preview/${invoice._id}`, "_blank");
+              }}
+            >
+              Generate Bulk Invoice ({selectedIds.length})
             </Button>
             <div className="relative flex-1 max-w-sm">
               <Input
@@ -582,9 +664,11 @@ export default function SoldItems() {
             <Label htmlFor="inventoryId">Select Item *</Label>
             <Select
               value={formData.inventoryId}
-              onValueChange={(value) =>
-                setFormData({ ...formData, inventoryId: value })
-              }
+              onValueChange={(value) => {
+                const inv = approvedItems.find((i) => i.id === value);
+                setSelectedInventory(inv || null);
+                setFormData({ ...formData, inventoryId: value });
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an approved item" />
@@ -599,7 +683,7 @@ export default function SoldItems() {
 
                 {approvedItems.map((item) => (
                   <SelectItem key={item.id} value={item.id}>
-                    {item.serialNumber} — {item.category?.name}
+                    {item.serialNumber} — {item.category?.name} (Pieces: {item.pieces}, Weight: {item.weight} {item.weightUnit})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -623,6 +707,57 @@ export default function SoldItems() {
                 ))}
               </SelectContent>
             </Select> */}
+          </div>
+
+          {selectedInventory && (
+            <div className="text-sm text-muted-foreground mb-2">
+              Available:
+              <span className="ml-2 font-medium">
+                {selectedInventory.pieces} pcs | {selectedInventory.weight} {selectedInventory.weightUnit}
+              </span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="soldPieces">Sold Pieces *</Label>
+              <Input
+                id="soldPieces"
+                type="number"
+                value={formData.soldPieces}
+                onChange={(e) =>
+                  setFormData({ ...formData, soldPieces: e.target.value })
+                }
+                placeholder="Sold Pieces"
+                required
+                className="flex-1"
+              />
+              {selectedInventory && Number(formData.soldPieces) > (selectedInventory?.pieces || 0) && (
+                <p className="text-sm text-red-500">
+                  Sold pieces exceed available stock ({selectedInventory.pieces} pcs)
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="soldWeight">Sold Weight *</Label>
+              <Input
+                id="soldWeight"
+                type="number"
+                step="0.01"
+                value={formData.soldWeight}
+                onChange={(e) =>
+                  setFormData({ ...formData, soldWeight: e.target.value })
+                }
+                placeholder="Sold Weight"
+                required
+                className="flex-1"
+              />
+              {selectedInventory && Number(formData.soldWeight) > (selectedInventory?.weight || 0) && (
+                <p className="text-sm text-red-500">
+                  Sold weight exceeds available stock ({selectedInventory.weight} {selectedInventory.weightUnit})
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

@@ -16,17 +16,31 @@ export interface Category {
 export interface InventoryItem {
   id: string;
   serialNumber: string;
-  category: Category;
 
-  pieces: number;
+  category:
+    | {
+        id: string;
+        name: string;
+      }
+    | string;
 
-  weight: number;
+  /* ===== NEW BACKEND FIELDS ===== */
+  totalPieces: number;
+  availablePieces: number;
+
+  totalWeight: number;
+  availableWeight: number;
+
   weightUnit: "carat" | "gram";
+
+  /* ===== BACKWARD COMPAT (USED BY UI) ===== */
+  pieces?: number;
+  weight?: number;
 
   purchaseCode: string;
   saleCode: string;
 
-   dimensions?: {
+  dimensions?: {
     length?: number;
     width?: number;
     height?: number;
@@ -36,12 +50,13 @@ export interface InventoryItem {
   certification?: string;
   location?: string;
 
-  status: "pending" | "in_stock" | "sold";
+  status: "pending" | "in_stock" | "partially_sold" | "sold";
 
   description?: string;
   images?: string[];
 
-  createdAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 export interface DashboardStats {
   totalInventory: number;
@@ -72,7 +87,10 @@ export interface SoldItem {
     };
     weight: number;
     weightUnit: string;
+    pieces: number;
   };
+  soldPieces: number;
+  soldWeight: number;
   price: number;
   currency: string;
   buyer?: string;
@@ -598,13 +616,15 @@ async downloadImportReport(rows: any[]) {
 
   async markAsSold(payload: {
     inventoryId: string;
+    soldPieces: number;
+    soldWeight: number;
     price: number;
     currency: string;
     soldDate: string;
     buyer?: string;
   }) {
     try {
-      const { data } = await apiClient.post("/sold", payload);
+      const { data } = await apiClient.post("/sold/mark-as-sold", payload);
 
       return {
         success: true,
@@ -724,30 +744,30 @@ async downloadImportReport(rows: any[]) {
 
   /* -------- INVOICES -------- */
 
-  async downloadInvoicePDF(invoiceId: string) {
-  const response = await apiClient.get(
-    `/invoices/${invoiceId}/pdf`,
-    {
-      responseType: "blob", // 🔥 IMPORTANT
-    }
-  );
+//   async downloadInvoicePDF(invoiceId: string) {
+//   const response = await apiClient.get(
+//     `/invoices/${invoiceId}/pdf`,
+//     {
+//       responseType: "blob", // 🔥 IMPORTANT
+//     }
+//   );
 
-  // Create downloadable link
-  const blob = new Blob([response.data], {
-    type: "application/pdf",
-  });
+//   // Create downloadable link
+//   const blob = new Blob([response.data], {
+//     type: "application/pdf",
+//   });
 
-  const url = window.URL.createObjectURL(blob);
+//   const url = window.URL.createObjectURL(blob);
 
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `invoice-${invoiceId}.pdf`; // you can improve name later
-  document.body.appendChild(a);
-  a.click();
+//   const a = document.createElement("a");
+//   a.href = url;
+//   a.download = `invoice-${invoiceId}.pdf`; // you can improve name later
+//   document.body.appendChild(a);
+//   a.click();
 
-  document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
-},
+//   document.body.removeChild(a);
+//   window.URL.revokeObjectURL(url);
+// },
 
   async getInvoiceBySold(soldId: string) {
     const { data } = await apiClient.get(`/invoices/sold/${soldId}`);
@@ -762,8 +782,77 @@ async downloadImportReport(rows: any[]) {
     return data;
   },
 
+  async createBulkInvoice(soldIds: string[]) {
+    const { data } = await apiClient.post("/invoices/bulk-create", {
+      soldIds,
+    });
+    return data;
+  },
+
+  async generateInvoiceFromSold(soldIds: string[]) {
+    const { data } = await apiClient.post("/invoices/from-sold", {
+      soldIds,
+    });
+    return data;
+  },
+
   async getInvoiceById(id: string) {
     const { data } = await apiClient.get(`/invoices/${id}`);
+    return data;
+  },
+
+  async updateInvoice(id: string, payload: any) {
+    const { data } = await apiClient.put(`/invoices/${id}`, payload);
+    return data;
+  },
+
+  async lockInvoice(id: string) {
+    const { data } = await apiClient.post(`/invoices/${id}/lock`);
+    return data;
+  },
+
+  async downloadInvoicePDF(invoiceId: string) {
+    const response = await apiClient.get(
+      `/invoices/${invoiceId}/pdf`,
+      { responseType: "blob" }
+    );
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invoice-${invoiceId}.pdf`;
+    a.click();
+  },
+
+  async getProfitAnalytics() {
+    const { data } = await apiClient.get("/analytics/profit");
+    return data;
+  },
+
+  async getMonthlyProfitAnalytics() {
+    const { data } = await apiClient.get("/analytics/monthly-profit");
+    return data;
+  },
+
+  async getCategoryProfitAnalytics() {
+    const { data } = await apiClient.get("/analytics/category-profit");
+    return data;
+  },
+
+  async exportProfitExcel() {
+    const res = await apiClient.get("/analytics/profit/export", {
+      responseType: "blob",
+    });
+
+    const url = window.URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "profit-report.xlsx";
+    a.click();
+  },
+
+  async generateBulkInvoice(payload: { soldIds: string[] }) {
+    const { data } = await apiClient.post("/invoices/bulk", payload);
     return data;
   },
 
