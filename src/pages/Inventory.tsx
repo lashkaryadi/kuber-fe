@@ -192,7 +192,11 @@ export default function Inventory() {
 
     setMarkAsSoldModalOpen(false);
     setItemToMarkAsSold(null);
-    fetchData(); // Refresh the inventory list
+    // Refresh both inventory and sold items to ensure consistency
+    await Promise.all([
+      fetchData(),           // inventory refresh
+      // Optionally trigger a refresh of sold items if needed elsewhere
+    ]);
     setSelling(false);
   };
 
@@ -505,6 +509,15 @@ category:
 
   const columns: Column<InventoryItem>[] = [
     {
+      key: "rowNumber",
+      header: "#",
+      render: (item, index) => (
+        <span className="text-muted-foreground">
+          {(page - 1) * 10 + index + 1}
+        </span>
+      ),
+    },
+    {
       key: "serialNumber",
       header: (
         <button
@@ -650,7 +663,7 @@ category:
           </Button>
 
           {/* Mark as Sold button - only for pending/in_stock items */}
-          {(item.status === "pending" || item.status === "in_stock") && (
+          {["pending", "in_stock", "partially_sold"].includes(item.status) && (
             <Button
               variant="ghost"
               size="icon"
@@ -739,6 +752,7 @@ category:
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="in_stock">In Stock</SelectItem>
+                <SelectItem value="partially_sold">Partially Sold</SelectItem>
                 <SelectItem value="sold">Sold</SelectItem>
               </SelectContent>
             </Select>
@@ -1239,11 +1253,31 @@ category:
 
             {/* Display available stock */}
             {itemToMarkAsSold && (
-              <div className="text-sm text-muted-foreground mb-2">
-                Available:
-                <span className="ml-2 font-medium">
-                  {itemToMarkAsSold.availablePieces} pcs | {itemToMarkAsSold.availableWeight} {itemToMarkAsSold.weightUnit}
-                </span>
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div className="text-sm text-muted-foreground">
+                  Available:
+                  <span className="ml-2 font-medium text-foreground">
+                    {itemToMarkAsSold.availablePieces} pcs | {itemToMarkAsSold.availableWeight} {itemToMarkAsSold.weightUnit}
+                  </span>
+                </div>
+
+                {/* ✅ NEW: Sell All Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSoldForm({
+                      ...soldForm,
+                      soldPieces: String(itemToMarkAsSold.availablePieces),
+                      soldWeight: String(itemToMarkAsSold.availableWeight),
+                    });
+                  }}
+                  className="gap-2"
+                >
+                  <ShoppingCart className="h-3 w-3" />
+                  Sell All
+                </Button>
               </div>
             )}
 

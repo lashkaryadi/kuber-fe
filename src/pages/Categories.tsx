@@ -205,6 +205,15 @@ const closeModal = () => {
 
   const columns: Column<Category>[] = [
     {
+      key: 'rowNumber',
+      header: '#',
+      render: (item, index) => (
+        <span className="text-muted-foreground">
+          {(page - 1) * 10 + index + 1}
+        </span>
+      ),
+    },
+    {
       key: 'name',
       header: 'Category Name',
       render: (item) => <span className="font-medium">{item.name}</span>,

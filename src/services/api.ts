@@ -103,6 +103,7 @@ export interface AuditLog {
   action: string;
   entityType: string;
   entityId: string;
+  entityName: string;
   performedBy?: {
     email: string;
   };
@@ -623,22 +624,13 @@ async downloadImportReport(rows: any[]) {
     soldDate: string;
     buyer?: string;
   }) {
-    try {
-      const { data } = await apiClient.post("/sold/mark-as-sold", payload);
+    const res = await apiClient.post("/sold/mark-as-sold", payload);
 
-      return {
-        success: true,
-        data,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message:
-          err?.response?.data?.message ||
-          err?.message ||
-          "Failed to mark item as sold",
-      };
-    }
+    return {
+      success: res.data?.success === true,
+      message: res.data?.message,
+      data: res.data?.data,
+    };
   },
   async undoSold(soldId: string) {
     try {
@@ -890,6 +882,11 @@ async downloadImportReport(rows: any[]) {
     a.click();
 
     window.URL.revokeObjectURL(url);
+  },
+
+  async clearAuditLogs() {
+    const { data } = await apiClient.delete("/audit-logs/clear");
+    return data;
   },
 
   async uploadImage(file: File) {
