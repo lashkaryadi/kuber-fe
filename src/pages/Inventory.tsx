@@ -202,6 +202,7 @@ export default function Inventory() {
 
   // Pagination state
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   type PaginationMeta = {
     total: number;
     page: number;
@@ -247,7 +248,7 @@ category:
           sortBy: sortKey || "createdAt",
           sortOrder: sortDir,
           page,
-          limit: 10,
+          limit,
         }),
         api.getCategories(),
       ]);
@@ -842,11 +843,26 @@ category:
             keyExtractor={(item) => item.id}
             emptyMessage="No inventory items found"
           />
-          <Pagination
-            page={meta?.page}
-            pages={meta?.pages}
-            onChange={setPage}
-          />
+          {/* ✅ NEW: Customizable Pagination */}
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="border rounded px-2 py-1"
+              >
+                {[10, 25, 50, 100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </div>
+
+            <Pagination page={meta?.page} pages={meta?.pages} onChange={setPage} />
+          </div>
         </div>
       </div>
 

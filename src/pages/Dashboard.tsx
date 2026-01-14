@@ -59,15 +59,6 @@ export default function Dashboard() {
 
   const recentSalesColumns: Column<SoldItem>[] = [
     {
-      key: "rowNumber",
-      header: "#",
-      render: (item, index) => (
-        <span className="text-muted-foreground">
-          {index + 1}
-        </span>
-      ),
-    },
-    {
       key: "serialNumber",
       header: "Serial Number",
       render: (item) => (
