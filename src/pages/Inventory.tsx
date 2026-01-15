@@ -510,15 +510,6 @@ category:
 
   const columns: Column<InventoryItem>[] = [
     {
-      key: "rowNumber",
-      header: "#",
-      render: (item, index) => (
-        <span className="text-muted-foreground">
-          {(page - 1) * 10 + index + 1}
-        </span>
-      ),
-    },
-    {
       key: "serialNumber",
       header: (
         <button

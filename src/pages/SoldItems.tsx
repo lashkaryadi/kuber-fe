@@ -451,15 +451,6 @@ setSelectedIds(selectedIds.filter((id) => id !== item.id));
 ),
 },
 {
-key: "rowNumber",
-header: "#",
-render: (item, index) => (
-<span className="text-muted-foreground">
-  {(page - 1) * limit + index + 1}
-</span>
-),
-},
-{
 key: "serialNumber",
 header: (
 <button
@@ -566,12 +557,21 @@ render: (item) => (
         size="icon"
         onClick={async () => {
           try {
+            // ✅ FETCH OR CREATE INVOICE
             const invoice = await api.getInvoiceBySold(item.id);
+
+            // ✅ OPEN IN NEW TAB
             window.open(`/invoice-preview/${invoice._id}`, "_blank");
           } catch (error) {
-            window.open(`/invoice/${item.id}`, "_blank");
+            console.error("Invoice error:", error);
+            toast({
+              title: "Error",
+              description: "Failed to load invoice",
+              variant: "destructive",
+            });
           }
         }}
+        title="View Invoice"
       >
         <FileText className="h-4 w-4" />
       </Button>
