@@ -21,6 +21,7 @@ import AuditLogs from "./pages/AuditLogs";
 import VerifyEmail from "./pages/VerifyEmail";
 import SettingsCompany from "@/pages/SettingsCompany";
 import Analytics from "@/pages/Analytics";
+import RecycleBin from "@/pages/RecycleBin";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,14 @@ const App = () => (
                 element={
                   <ProtectedRoute>
                     <Analytics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/recycle-bin"
+                element={
+                  <ProtectedRoute>
+                    <RecycleBin />
                   </ProtectedRoute>
                 }
               />

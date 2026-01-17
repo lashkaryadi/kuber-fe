@@ -36,8 +36,11 @@ export const generateInvoicePDF = (invoice: any) => {
   doc.text(`Serial Number: ${soldItem.inventoryItem.serialNumber}`, 20, y);
 
   y += 8;
+  const categoryName = typeof soldItem.inventoryItem.category === "object"
+    ? soldItem.inventoryItem.category.name
+    : "Deleted Category";
   doc.text(
-    `Category: ${soldItem.inventoryItem.category.name}`,
+    `Category: ${categoryName}`,
     20,
     y
   );

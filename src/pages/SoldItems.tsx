@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DataTable, Column } from "@/components/common/DataTable";
 import { Modal } from "@/components/common/Modal";
@@ -50,56 +50,57 @@ const [page, setPage] = useState(1);
 const [limit, setLimit] = useState(10); // ✅ NEW: Customizable limit
 const [meta, setMeta] = useState<PaginationMeta | null>(null);
 
-useEffect(() => {
-fetchData();
-}, [page, limit]); // ✅ Added limit dependency
+// Define fetchData before useEffect to avoid TS2448 error
+const fetchData = useCallback(async () => {
+  setLoading(true);
+  try {
+    const [soldRes, inventoryRes] = await Promise.all([
+      api.getSoldItems({
+        page,
+        limit, // ✅ Pass limit
+        search: searchText || undefined,
+        sortBy: sortKey || undefined,
+        sortOrder: sortDir || undefined,
+      }),
+      api.getSellableInventory(),
+    ]);
 
-useEffect(() => {
-const timer = setTimeout(() => {
-setPage(1); // Reset to page 1 when search/sort changes
-fetchData();
-}, 300);
-return () => clearTimeout(timer);
-}, [searchText, sortKey, sortDir]);
+    if (soldRes.success) {
+      setSoldItems(Array.isArray(soldRes.data) ? soldRes.data : []);
+      setMeta(soldRes.meta || null);
+    } else {
+      setSoldItems([]);
+      setMeta(null);
+    }
 
-const fetchData = async () => {
-setLoading(true);
-try {
-const [soldRes, inventoryRes] = await Promise.all([
-api.getSoldItems({
-page,
-limit, // ✅ Pass limit
-search: searchText || undefined,
-sortBy: sortKey || undefined,
-sortOrder: sortDir || undefined,
-}),
-api.getSellableInventory(),
-]);
-
-  if (soldRes.success) {
-    setSoldItems(Array.isArray(soldRes.data) ? soldRes.data : []);
-    setMeta(soldRes.meta || null);
-  } else {
+    if (inventoryRes && typeof inventoryRes === "object" && "data" in inventoryRes) {
+      setApprovedItems(Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
+    } else if (Array.isArray(inventoryRes)) {
+      setApprovedItems(inventoryRes);
+    } else {
+      setApprovedItems([]);
+    }
+  } catch (error) {
+    console.error("Error fetching data:", error);
     setSoldItems([]);
-    setMeta(null);
-  }
-
-  if (inventoryRes && typeof inventoryRes === "object" && "data" in inventoryRes) {
-    setApprovedItems(Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
-  } else if (Array.isArray(inventoryRes)) {
-    setApprovedItems(inventoryRes);
-  } else {
     setApprovedItems([]);
+    setMeta(null);
+  } finally {
+    setLoading(false);
   }
-} catch (error) {
-  console.error("Error fetching data:", error);
-  setSoldItems([]);
-  setApprovedItems([]);
-  setMeta(null);
-} finally {
-  setLoading(false);
-}
-};
+}, [page, limit, searchText, sortKey, sortDir]);
+
+useEffect(() => {
+  fetchData();
+}, [page, limit, fetchData]); // ✅ Added limit dependency and fetchData
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setPage(1); // Reset to page 1 when search/sort changes
+    fetchData();
+  }, 300);
+  return () => clearTimeout(timer);
+}, [searchText, sortKey, sortDir, fetchData]);
 
   const openModal = () => {
     setFormData({
@@ -130,11 +131,16 @@ try {
       variant: "destructive",
     });
   }
-} catch (err: any) {
+} catch (err: unknown) {
   setApprovedItems([]);
+  const message =
+    err instanceof Error
+      ? err.message
+      : "Failed to fetch sellable inventory";
+
   toast({
     title: "Error",
-    description: err?.response?.data?.message || "Failed to fetch sellable inventory",
+    description: message,
     variant: "destructive",
   });
 }
@@ -426,6 +432,7 @@ key: "checkbox",
 header: (
 <input
 type="checkbox"
+aria-label="Select all sold items"
 checked={selectedIds.length === soldItems.length && soldItems.length > 0}
 onChange={(e) => {
 if (e.target.checked) {
@@ -439,6 +446,7 @@ setSelectedIds([]);
 render: (item) => (
 <input
 type="checkbox"
+aria-label={`Select sold item ${item.inventoryItem.serialNumber}`}
 checked={selectedIds.includes(item.id)}
 onChange={(e) => {
 if (e.target.checked) {
@@ -478,13 +486,46 @@ render: (item) =>
 {
 key: "soldPieces",
 header: "Sold Pieces",
-render: (item) => item.soldPieces ?? "-",
+render: (item) => {
+  // Check if the inventory item has shapes
+  if (item.inventoryItem?.shapes && item.inventoryItem.shapes.length > 0) {
+    return (
+      <div className="space-y-1">
+        {item.inventoryItem.shapes.map((shape, idx) => (
+          <div key={idx} className="text-xs">
+            <span className="font-medium">{shape.name || "Shape"}:</span> {shape.pieces} pcs
+          </div>
+        ))}
+        <div className="pt-1 border-t border-gray-200">
+          <span className="font-medium">Total:</span> {item.soldPieces ?? "-"} pcs
+        </div>
+      </div>
+    );
+  }
+  return item.soldPieces ?? "-";
+},
 },
 {
 key: "soldWeight",
 header: "Sold Weight",
-render: (item) =>
-  `${item.soldWeight ?? "-"} ${item.inventoryItem?.weightUnit ?? "-"}`,
+render: (item) => {
+  // Check if the inventory item has shapes
+  if (item.inventoryItem?.shapes && item.inventoryItem.shapes.length > 0) {
+    return (
+      <div className="space-y-1">
+        {item.inventoryItem.shapes.map((shape, idx) => (
+          <div key={idx} className="text-xs">
+            <span className="font-medium">{shape.name || "Shape"}:</span> {shape.weight} {item.inventoryItem?.weightUnit ?? "-"}
+          </div>
+        ))}
+        <div className="pt-1 border-t border-gray-200">
+          <span className="font-medium">Total:</span> {item.soldWeight ?? "-"} {item.inventoryItem?.weightUnit ?? "-"}
+        </div>
+      </div>
+    );
+  }
+  return `${item.soldWeight ?? "-"} ${item.inventoryItem?.weightUnit ?? "-"}`;
+},
 },
 {
 key: "price",
@@ -606,6 +647,7 @@ render: (item) => (
             <div className="relative flex-1 max-w-sm">
               <Input
                 placeholder="Search sold items..."
+                aria-label="Search sold items"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 className="pl-3"

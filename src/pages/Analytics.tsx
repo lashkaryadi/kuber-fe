@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import api from "@/services/api";
+import api from "@/services/api";;
 import {
   LineChart,
   Line,
@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/hooks/use-toast";
 
 interface AnalyticsData {
   totals: {
@@ -42,9 +43,19 @@ export default function Analytics() {
   const [data, setData] = useState<AnalyticsData | null>(null);
 
   useEffect(() => {
-    api.getProfitAnalytics().then((response) => {
-      setData(response);
-    });
+    const load = async () => {
+      try {
+        const response = await api.getProfitAnalytics();
+        setData(response);
+      } catch (err) {
+        toast({
+          title: "Error",
+          description: "Failed to load analytics",
+          variant: "destructive",
+        });
+      }
+    };
+    load();
   }, []);
 
   if (!data) return <div className="p-6">Loading...</div>;

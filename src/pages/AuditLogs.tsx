@@ -13,7 +13,10 @@ interface AuditLog {
   entityType: string;
   entityId: string;
   entityName: string;
-  user: string;
+  performedBy?: {
+    id: string;
+    username: string;
+  };
   createdAt: string;
 }
 
@@ -36,7 +39,7 @@ export default function AuditLogs() {
       // Map the response to match our interface
       const mappedLogs = (res.data || []).map((log: any) => ({
         ...log,
-        user: log.performedBy?.email || "-",
+        // Keep the performedBy field as is
       }));
       setLogs(mappedLogs);
       setMeta(res.meta);
@@ -107,7 +110,7 @@ export default function AuditLogs() {
     {
       key: "user",
       header: "User",
-      render: (log) => log.performedBy?.email || "-",
+      render: (log) => log.performedBy?.username || "-",
     },
     {
       key: "createdAt",

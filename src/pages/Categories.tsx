@@ -175,9 +175,9 @@ const handleDelete = async () => {
     await api.deleteCategory(selectedCategory.id);
 
     toast({
-      title: "Deleted",
-      description: "Category deleted successfully",
-      duration: 2000,
+      title: "Moved to Recycle Bin",
+      description: "Category moved to recycle bin and can be restored",
+      duration: 3000,
     });
 
     setDeleteModalOpen(false);
@@ -215,6 +215,17 @@ const closeModal = () => {
       header: 'Description',
       render: (item) => (
         <span className="text-muted-foreground">{item.description || '-'}</span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (item) => (
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          item.isDeleted ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+        }`}>
+          {item.isDeleted ? 'Deleted' : 'Active'}
+        </span>
       ),
     },
     {

@@ -171,7 +171,7 @@ export default function PackagingDetails() {
                   <div>
                     <p className="font-medium">{inv.serialNumber}</p>
                     <p className="text-sm text-muted-foreground">
-                      {inv.category.name} • {inv.weight} {inv.weightUnit} •{" "}
+                      {typeof inv.category === "object" ? inv.category.name : "Deleted"} • {inv.weight} {inv.weightUnit} •{" "}
                       {inv.pieces} pcs
                     </p>
                     {(inv.purchaseCode || inv.saleCode) && (

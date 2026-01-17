@@ -39,20 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { success: true };
 
-    } catch (err: any) {
-      const errorResponse = err?.response?.data;
+    } catch (err: unknown) {
+      const errorResponse = err && typeof err === 'object' && 'response' in err ? (err as any).response : null;
+      const errorMessage = errorResponse?.data?.message || 'Login failed';
 
-      if (errorResponse?.requiresVerification) {
+      if (errorResponse?.data?.requiresVerification) {
         return {
           success: false,
           requiresVerification: true,
-          email: errorResponse.email,
+          email: errorResponse.data.email,
         };
       }
 
       return {
         success: false,
-        error: errorResponse?.message || 'Login failed',
+        error: errorMessage,
       };
     }
   };

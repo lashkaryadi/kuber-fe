@@ -51,9 +51,19 @@ export default function Inventory() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  // Define the Shape type
+  type Shape = {
+    name: string;
+    pieces: number;
+    weight: number;
+  };
+
   const [formData, setFormData] = useState({
     serialNumber: "",
     category: "",
+    // New shape-based fields
+    shapes: [{ name: "Default", pieces: 1, weight: 0 }] as Shape[],
+    // Old fields for backward compatibility
     pieces: "1",
     weight: "",
     weightUnit: "carat" as "carat" | "gram",
@@ -69,6 +79,7 @@ export default function Inventory() {
     description: "",
     images: [] as string[],
   });
+
   const [previewRows, setPreviewRows] = useState<ExcelPreviewRow[]>([]);
   const [allRows, setAllRows] = useState<ExcelPreviewRow[]>([]);
   const hasValidRows = previewRows.some((r) => r.isValid && !r.isDuplicate);
@@ -76,7 +87,8 @@ export default function Inventory() {
 
   // State for mark as sold functionality
   const [markAsSoldModalOpen, setMarkAsSoldModalOpen] = useState(false);
-  const [itemToMarkAsSold, setItemToMarkAsSold] = useState<InventoryItem | null>(null);
+  const [itemToMarkAsSold, setItemToMarkAsSold] =
+    useState<InventoryItem | null>(null);
   const [soldForm, setSoldForm] = useState({
     soldPieces: "",
     soldWeight: "",
@@ -194,7 +206,7 @@ export default function Inventory() {
     setItemToMarkAsSold(null);
     // Refresh both inventory and sold items to ensure consistency
     await Promise.all([
-      fetchData(),           // inventory refresh
+      fetchData(), // inventory refresh
       // Optionally trigger a refresh of sold items if needed elsewhere
     ]);
     setSelling(false);
@@ -218,13 +230,12 @@ export default function Inventory() {
 
   // Effect to fetch data when page changes (including when page is reset due to filter changes)
   useEffect(() => {
-  const timer = setTimeout(() => {
-    fetchData();
-  }, 300);
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 300);
 
-  return () => clearTimeout(timer);
-}, [page, searchText, categoryFilter, statusFilter, sortKey, sortDir]);
-
+    return () => clearTimeout(timer);
+  }, [page, searchText, categoryFilter, statusFilter, sortKey, sortDir]);
 
   const fetchData = async () => {
     // Check if filters have changed compared to the last fetch
@@ -240,10 +251,10 @@ export default function Inventory() {
       const [inventoryRes, categoriesRes] = await Promise.all([
         api.getInventory({
           search: searchText,
-category:
-  categoryFilter && categoryFilter !== "all"
-    ? categoryFilter
-    : undefined,
+          category:
+            categoryFilter && categoryFilter !== "all"
+              ? categoryFilter
+              : undefined,
           status: statusFilter !== "all" ? statusFilter : undefined,
           sortBy: sortKey || "createdAt",
           sortOrder: sortDir,
@@ -255,7 +266,11 @@ category:
 
       setItems(Array.isArray(inventoryRes.data) ? inventoryRes.data : []);
       setMeta(inventoryRes.meta);
-      setCategories(Array.isArray(categoriesRes) ? categoriesRes : (categoriesRes?.data || []));
+      setCategories(
+        Array.isArray(categoriesRes)
+          ? categoriesRes
+          : categoriesRes?.data || [],
+      );
     } catch (err) {
       console.error("Failed to load inventory data", err);
       setItems([]);
@@ -280,6 +295,7 @@ category:
     setFormData({
       serialNumber: "",
       category: "",
+      shapes: [{ name: "Default", pieces: 1, weight: 0 }] as Shape[],
       pieces: "1",
       weight: "",
       weightUnit: "carat",
@@ -305,9 +321,28 @@ category:
       category:
         typeof item.category === "object" ? item.category.id : item.category,
 
+      // Handle shapes if available
+      shapes: item.shapes || [
+        {
+          name: "Default",
+          pieces: Number(item.pieces || 0),
+          weight: Number(item.weight || 0),
+        },
+      ],
+
       // ✅ Use new fields with fallback to old ones
-      pieces: (item.availablePieces ?? item.totalPieces ?? item.pieces ?? "").toString(),
-      weight: (item.availableWeight ?? item.totalWeight ?? item.weight ?? "").toString(),
+      pieces: (
+        item.availablePieces ??
+        item.totalPieces ??
+        item.pieces ??
+        ""
+      ).toString(),
+      weight: (
+        item.availableWeight ??
+        item.totalWeight ??
+        item.weight ??
+        ""
+      ).toString(),
       weightUnit: item.weightUnit,
 
       purchaseCode: item.purchaseCode || "",
@@ -349,15 +384,30 @@ category:
       setSaving(false);
       return;
     }
+
+    // Determine whether to use shapes or old fields
+    const useShapes = formData.shapes && formData.shapes.length > 0;
+
     const payload = {
       serialNumber: formData.serialNumber,
       category: formData.category,
 
-      // ✅ Backend expects these new fields
-      totalPieces: Number(formData.pieces),
-      availablePieces: Number(formData.pieces), // Initially available = total
-      totalWeight: Number(formData.weight),
-      availableWeight: Number(formData.weight), // Initially available = total
+      // Send shapes if available, otherwise use old fields
+      ...(useShapes ? { shapes: formData.shapes } : {}),
+
+      // Always send the calculated totals based on shapes or old fields
+      totalPieces: useShapes
+        ? formData.shapes.reduce((sum, shape) => sum + shape.pieces, 0)
+        : Number(formData.pieces),
+      availablePieces: useShapes
+        ? formData.shapes.reduce((sum, shape) => sum + shape.pieces, 0)
+        : Number(formData.pieces),
+      totalWeight: useShapes
+        ? formData.shapes.reduce((sum, shape) => sum + shape.weight, 0)
+        : Number(formData.weight),
+      availableWeight: useShapes
+        ? formData.shapes.reduce((sum, shape) => sum + shape.weight, 0)
+        : Number(formData.weight),
       weightUnit: formData.weightUnit,
 
       purchaseCode: formData.purchaseCode,
@@ -457,8 +507,8 @@ category:
   type ExcelPreviewRow = {
     serialNumber?: string;
     category?: string;
-    pieces?: number;  // For backward compatibility
-    weight?: number;  // For backward compatibility
+    pieces?: number; // For backward compatibility
+    weight?: number; // For backward compatibility
     totalPieces?: number;
     availablePieces?: number;
     totalWeight?: number;
@@ -519,7 +569,8 @@ category:
           }}
           className="flex items-center gap-1"
         >
-          Serial Number {sortKey === "serialNumber" && (sortDir === "asc" ? "↑" : "↓")}
+          Serial Number{" "}
+          {sortKey === "serialNumber" && (sortDir === "asc" ? "↑" : "↓")}
         </button>
       ),
       render: (item) => (
@@ -547,10 +598,30 @@ category:
           }}
           className="flex items-center gap-1"
         >
-          Available Pieces {sortKey === "availablePieces" && (sortDir === "asc" ? "↑" : "↓")}
+          Available Pieces{" "}
+          {sortKey === "availablePieces" && (sortDir === "asc" ? "↑" : "↓")}
         </button>
       ),
-      render: (item) => item.availablePieces ?? item.totalPieces ?? item.pieces,
+      render: (item) => {
+        // Show shapes if available, otherwise fallback to old fields
+        if (item.shapes && item.shapes.length > 0) {
+          return (
+            <div className="space-y-1">
+              {item.shapes.map((shape, idx) => (
+                <div key={idx} className="text-xs">
+                  <span className="font-medium">{shape.name || "Shape"}:</span>{" "}
+                  {shape.pieces} pcs
+                </div>
+              ))}
+              <div className="pt-1 border-t border-gray-200">
+                <span className="font-medium">Total:</span>{" "}
+                {item.availablePieces ?? item.totalPieces ?? item.pieces} pcs
+              </div>
+            </div>
+          );
+        }
+        return item.availablePieces ?? item.totalPieces ?? item.pieces;
+      },
     },
     {
       key: "weight",
@@ -562,11 +633,31 @@ category:
           }}
           className="flex items-center gap-1"
         >
-          Available Weight {sortKey === "availableWeight" && (sortDir === "asc" ? "↑" : "↓")}
+          Available Weight{" "}
+          {sortKey === "availableWeight" && (sortDir === "asc" ? "↑" : "↓")}
         </button>
       ),
-      render: (item) =>
-        `${item.availableWeight ?? item.totalWeight ?? item.weight} ${item.weightUnit}`,
+      render: (item) => {
+        // Show shapes if available, otherwise fallback to old fields
+        if (item.shapes && item.shapes.length > 0) {
+          return (
+            <div className="space-y-1">
+              {item.shapes.map((shape, idx) => (
+                <div key={idx} className="text-xs">
+                  <span className="font-medium">{shape.name || "Shape"}:</span>{" "}
+                  {shape.weight} {item.weightUnit}
+                </div>
+              ))}
+              <div className="pt-1 border-t border-gray-200">
+                <span className="font-medium">Total:</span>{" "}
+                {item.availableWeight ?? item.totalWeight ?? item.weight}{" "}
+                {item.weightUnit}
+              </div>
+            </div>
+          );
+        }
+        return `${item.availableWeight ?? item.totalWeight ?? item.weight} ${item.weightUnit}`;
+      },
     },
     {
       key: "purchaseCode",
@@ -578,7 +669,8 @@ category:
           }}
           className="flex items-center gap-1"
         >
-          Purchase Code {sortKey === "purchaseCode" && (sortDir === "asc" ? "↑" : "↓")}
+          Purchase Code{" "}
+          {sortKey === "purchaseCode" && (sortDir === "asc" ? "↑" : "↓")}
         </button>
       ),
       render: (item) => item.purchaseCode || "-",
@@ -599,19 +691,18 @@ category:
       render: (item) => item.saleCode || "-",
     },
     {
-  key: "dimensions",
-  header: "Dimensions",
-  render: (item) =>
-    item.dimensions?.length ? (
-      <span className="whitespace-nowrap min-w-[160px] inline-block">
-        {item.dimensions.length} x {item.dimensions.width} x{" "}
-        {item.dimensions.height} {item.dimensions.unit}
-      </span>
-    ) : (
-      "-"
-    ),
-},
-
+      key: "dimensions",
+      header: "Dimensions",
+      render: (item) =>
+        item.dimensions?.length ? (
+          <span className="whitespace-nowrap min-w-[160px] inline-block">
+            {item.dimensions.length} x {item.dimensions.width} x{" "}
+            {item.dimensions.height} {item.dimensions.unit}
+          </span>
+        ) : (
+          "-"
+        ),
+    },
 
     {
       key: "certification",
@@ -684,6 +775,7 @@ category:
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search inventory..."
+                aria-label="Search inventory"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 className="pl-9"
@@ -837,7 +929,9 @@ category:
           {/* ✅ NEW: Customizable Pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Items per page:</span>
+              <span className="text-sm text-muted-foreground">
+                Items per page:
+              </span>
               <select
                 value={limit}
                 onChange={(e) => {
@@ -846,13 +940,19 @@ category:
                 }}
                 className="border rounded px-2 py-1"
               >
-                {[10, 25, 50, 100].map(n => (
-                  <option key={n} value={n}>{n}</option>
+                {[10, 25, 50, 100].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
                 ))}
               </select>
             </div>
 
-            <Pagination page={meta?.page} pages={meta?.pages} onChange={setPage} />
+            <Pagination
+              page={meta?.page}
+              pages={meta?.pages}
+              onChange={setPage}
+            />
           </div>
         </div>
       </div>
@@ -975,50 +1075,150 @@ category:
                 required
               />
             </div>
+          </div>
 
-            {/* Dimensions */}
-            <div className="space-y-2">
-              <Label>Dimensions </Label>
-              <div className="grid grid-cols-4 gap-3">
-                <Input
-                  placeholder="Length"
-                  value={formData.length}
-                  onChange={(e) =>
-                    setFormData({ ...formData, length: e.target.value })
-                  }
-                />
-                <Input
-                  placeholder="Width"
-                  value={formData.width}
-                  onChange={(e) =>
-                    setFormData({ ...formData, width: e.target.value })
-                  }
-                />
-                <Input
-                  placeholder="Height"
-                  value={formData.height}
-                  onChange={(e) =>
-                    setFormData({ ...formData, height: e.target.value })
-                  }
-                />
-                <Select
-                  value={formData.dimensionUnit}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, dimensionUnit: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mm">mm</SelectItem>
-                    <SelectItem value="cm">cm</SelectItem>
-                    <SelectItem value="inch">inch</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Shape Management Section */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Label>Shapes</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFormData({
+                    ...formData,
+                    shapes: [
+                      ...formData.shapes,
+                      { name: "", pieces: 0, weight: 0 },
+                    ],
+                  });
+                }}
+              >
+                Add Shape
+              </Button>
             </div>
 
+            {formData.shapes.map((shape, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-12 gap-2 items-end border p-3 rounded"
+              >
+                <div className="col-span-4 space-y-2">
+                  <Label>Name</Label>
+                  <Input
+                    value={shape.name}
+                    onChange={(e) => {
+                      const newShapes = [...formData.shapes];
+                      newShapes[index] = {
+                        ...newShapes[index],
+                        name: e.target.value,
+                      };
+                      setFormData({ ...formData, shapes: newShapes });
+                    }}
+                    placeholder="e.g., Round, Square"
+                  />
+                </div>
+
+                <div className="col-span-3 space-y-2">
+                  <Label>Pieces</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={shape.pieces}
+                    onChange={(e) => {
+                      const newShapes = [...formData.shapes];
+                      newShapes[index] = {
+                        ...newShapes[index],
+                        pieces: Number(e.target.value),
+                      };
+                      setFormData({ ...formData, shapes: newShapes });
+                    }}
+                  />
+                </div>
+
+                <div className="col-span-3 space-y-2">
+                  <Label>Weight</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    value={shape.weight}
+                    onChange={(e) => {
+                      const newShapes = [...formData.shapes];
+                      newShapes[index] = {
+                        ...newShapes[index],
+                        weight: Number(e.target.value),
+                      };
+                      setFormData({ ...formData, shapes: newShapes });
+                    }}
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const newShapes = formData.shapes.filter(
+                        (_, i) => i !== index,
+                      );
+                      setFormData({ ...formData, shapes: newShapes });
+                    }}
+                    className="w-full"
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Dimensions */}
+          <div className="space-y-2">
+            <Label>Dimensions </Label>
+            <div className="grid grid-cols-4 gap-3">
+              <Input
+                placeholder="Length"
+                value={formData.length}
+                onChange={(e) =>
+                  setFormData({ ...formData, length: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Width"
+                value={formData.width}
+                onChange={(e) =>
+                  setFormData({ ...formData, width: e.target.value })
+                }
+              />
+              <Input
+                placeholder="Height"
+                value={formData.height}
+                onChange={(e) =>
+                  setFormData({ ...formData, height: e.target.value })
+                }
+              />
+              <Select
+                value={formData.dimensionUnit}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, dimensionUnit: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mm">mm</SelectItem>
+                  <SelectItem value="cm">cm</SelectItem>
+                  <SelectItem value="inch">inch</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="certification">Certification</Label>
               <Input
@@ -1046,8 +1246,10 @@ category:
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Select
-                value={formData.status === "sold" ? "in_stock" : formData.status}
-                onValueChange={(value: "in_stock" | "pending"  ) =>
+                value={
+                  formData.status === "sold" ? "in_stock" : formData.status
+                }
+                onValueChange={(value: "in_stock" | "pending") =>
                   setFormData({ ...formData, status: value })
                 }
               >
@@ -1114,20 +1316,25 @@ category:
               <div>
                 <Label className="text-muted-foreground">Category</Label>
                 <p className="font-medium">
-  {typeof selectedItem.category === "object"
-    ? selectedItem.category.name
-    : "Deleted"}
-</p>
-
+                  {typeof selectedItem.category === "object"
+                    ? selectedItem.category.name
+                    : "Deleted"}
+                </p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Pieces</Label>
-                <p className="font-medium">{selectedItem.availablePieces ?? selectedItem.totalPieces ?? selectedItem.pieces}</p>
+                <p className="font-medium">
+                  {selectedItem.availablePieces ??
+                    selectedItem.totalPieces ??
+                    selectedItem.pieces}
+                </p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Weight</Label>
                 <p className="font-medium">
-                  {selectedItem.availableWeight ?? selectedItem.totalWeight ?? selectedItem.weight}{" "}
+                  {selectedItem.availableWeight ??
+                    selectedItem.totalWeight ??
+                    selectedItem.weight}{" "}
                   {selectedItem.weightUnit}
                 </p>
               </div>
@@ -1250,12 +1457,12 @@ category:
           <form onSubmit={handleMarkAsSoldSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Item</Label>
-<p className="font-medium">
-  {itemToMarkAsSold.serialNumber} —{" "}
-  {typeof itemToMarkAsSold.category === "object"
-    ? itemToMarkAsSold.category.name
-    : "Deleted"}
-</p>
+              <p className="font-medium">
+                {itemToMarkAsSold.serialNumber} —{" "}
+                {typeof itemToMarkAsSold.category === "object"
+                  ? itemToMarkAsSold.category.name
+                  : "Deleted"}
+              </p>
             </div>
 
             {/* Display available stock */}
@@ -1264,7 +1471,9 @@ category:
                 <div className="text-sm text-muted-foreground">
                   Available:
                   <span className="ml-2 font-medium text-foreground">
-                    {itemToMarkAsSold.availablePieces} pcs | {itemToMarkAsSold.availableWeight} {itemToMarkAsSold.weightUnit}
+                    {itemToMarkAsSold.availablePieces} pcs |{" "}
+                    {itemToMarkAsSold.availableWeight}{" "}
+                    {itemToMarkAsSold.weightUnit}
                   </span>
                 </div>
 

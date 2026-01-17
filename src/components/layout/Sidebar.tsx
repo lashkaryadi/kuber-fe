@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   Settings,
-  BarChart3
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Inventory', href: '/inventory', icon: Gem },
   { name: 'Categories', href: '/categories', icon: FolderOpen },
   { name: 'Sold Items', href: '/sold', icon: ShoppingCart },
+  { name: 'Recycle Bin', href: '/recycle-bin', icon: Trash2, adminOnly: true },
   { name: 'Analytics', href: '/analytics', icon: BarChart3, adminOnly: true },
   { name: 'Audit Logs', href: '/audit-logs', icon: Shield, adminOnly: true },
   { name: 'Users', href: '/users', icon: Users, adminOnly: true },

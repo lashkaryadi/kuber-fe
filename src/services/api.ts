@@ -10,7 +10,19 @@ export interface Category {
   id: string;
   name: string;
   description?: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: {
+    username: string;
+    email: string;
+  };
   createdAt: string;
+}
+
+export interface Shape {
+  name: string;
+  pieces: number;
+  weight: number;
 }
 
 export interface InventoryItem {
@@ -32,6 +44,9 @@ export interface InventoryItem {
   availableWeight: number;
 
   weightUnit: "carat" | "gram";
+
+  /* ===== SHAPES SUPPORT ===== */
+  shapes?: Shape[];
 
   /* ===== BACKWARD COMPAT (USED BY UI) ===== */
   pieces?: number;
@@ -88,6 +103,12 @@ export interface SoldItem {
     weight: number;
     weightUnit: string;
     pieces: number;
+    // ✅ ADD SHAPES SUPPORT
+    shapes?: {
+      name: string;
+      pieces: number;
+      weight: number;
+    }[];
   };
   soldPieces: number;
   soldWeight: number;
@@ -129,10 +150,27 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-let isRefreshing = false;
-let failedQueue: any[] = [];
+/* =======================
+   RESPONSE ERROR INTERCEPTOR
+======================== */
+apiClient.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(err);
+  }
+);
 
-const processQueue = (error: any, token: string | null = null) => {
+let isRefreshing = false;
+let failedQueue: {
+  resolve: (token: string | null) => void;
+  reject: (error: unknown) => void;
+}[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
   failedQueue.forEach(prom => {
     if (error) prom.reject(error);
     else prom.resolve(token);
@@ -255,9 +293,14 @@ const api = {
     try {
       const { data } = await apiClient.get("/dashboard");
       return { data: data.data };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch dashboard stats";
+
       return {
-        error: err?.response?.data?.error || "Failed to fetch dashboard stats",
+        error: message,
       };
     }
   },
@@ -289,10 +332,15 @@ const api = {
       })) || [];
 
       return { success: true, data: users };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch users";
+
       return {
         success: false,
-        message: err?.response?.data?.message || "Failed to fetch users",
+        message,
       };
     }
   },
@@ -1022,4 +1070,133 @@ export const deleteInventoryImage = async (url: string) => {
     data: { url },
   });
 }
+
+/* =========================
+   RECYCLE BIN API
+========================= */
+export interface RecycleBinItem {
+  id: string;
+  entityType: "inventory" | "category";
+  entityData: Record<string, unknown>;
+  deletedBy: {
+    username: string;
+    email: string;
+  };
+  deletedAt: string;
+  expiresAt: string;
+}
+
+export const getRecycleBinItems = async (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  entityType?: string;
+}) => {
+  try {
+    const { data } = await apiClient.get("/recycle-bin", { params });
+    return {
+      success: true,
+      data: data.data || [],
+      meta: data.meta || null,
+    };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Failed to fetch recycle bin";
+
+    return {
+      success: false,
+      message,
+      data: [],
+      meta: null,
+    };
+  }
+};
+
+export const restoreRecycleBinItems = async (ids: string[]) => {
+  try {
+    const { data } = await apiClient.post("/recycle-bin/restore", { ids });
+    return {
+      success: true,
+      message: data.message,
+      restored: data.restored,
+      failed: data.failed,
+    };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Failed to restore items";
+
+    return {
+      success: false,
+      message,
+    };
+  }
+};
+
+export const permanentlyDeleteRecycleBinItems = async (ids: string[]) => {
+  try {
+    const { data } = await apiClient.delete("/recycle-bin/delete", {
+      data: { ids },
+    });
+    return {
+      success: true,
+      message: data.message,
+      deleted: data.deleted,
+      failed: data.failed,
+    };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Failed to delete items";
+
+    return {
+      success: false,
+      message,
+    };
+  }
+};
+
+export const emptyRecycleBin = async (entityType?: string) => {
+  try {
+    const { data } = await apiClient.delete("/recycle-bin/empty", {
+      data: { entityType },
+    });
+    return {
+      success: true,
+      message: data.message,
+      deleted: data.deleted,
+      failed: data.failed,
+    };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Failed to empty recycle bin";
+
+    return {
+      success: false,
+      message,
+    };
+  }
+};
+
+
+/* =========================
+   ANALYTICS API
+========================= */
+export const getProfitAnalytics = () =>
+  apiClient.get("/analytics/profit").then(res => res.data);
+
+export const exportProfitExcel = () =>
+  apiClient.get("/analytics/profit/export", { responseType: "blob" });
+
+/* =========================
+   ANALYTICS EXPORT API
+========================= */
+export const exportAnalyticsExcel = () =>
+  apiClient.get("/analytics/export", { responseType: "blob" });
 
