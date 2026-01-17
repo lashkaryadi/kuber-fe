@@ -162,6 +162,7 @@ export default function AuditLogs() {
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Items per page:</span>
               <select
+                aria-label="Items per page"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
@@ -170,7 +171,7 @@ export default function AuditLogs() {
                 className="border rounded px-2 py-1"
               >
                 {[10, 25, 50, 100].map(n => (
-                  <option key={n} value={n}>{n}</option>
+                  <select key={n} value={n}>{n}</select>
                 ))}
               </select>
             </div>

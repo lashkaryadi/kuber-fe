@@ -295,9 +295,9 @@ export default function Inventory() {
     setFormData({
       serialNumber: "",
       category: "",
-      shapes: [{ name: "Default", pieces: 1, weight: 0 }] as Shape[],
+      shapes: [] as Shape[],
       pieces: "1",
-      weight: "",
+      weight: "0",
       weightUnit: "carat",
       purchaseCode: "",
       saleCode: "",
@@ -322,13 +322,7 @@ export default function Inventory() {
         typeof item.category === "object" ? item.category.id : item.category,
 
       // Handle shapes if available
-      shapes: item.shapes || [
-        {
-          name: "Default",
-          pieces: Number(item.pieces || 0),
-          weight: Number(item.weight || 0),
-        },
-      ],
+      shapes: item.shapes || [],
 
       // ✅ Use new fields with fallback to old ones
       pieces: (
