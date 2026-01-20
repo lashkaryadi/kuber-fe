@@ -6,6 +6,7 @@ import { InventoryItem } from '@/types/inventory';
 import { AddInventoryDialog } from './AddInventoryDialog';
 import { SaleDialog } from './SaleDialog';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface InventoryTableProps {
   inventory: InventoryItem[];
@@ -25,12 +26,18 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaleDialogOpen, setIsSaleDialogOpen] = useState(false);
 
+  const { getToken } = useAuth();
+
   const handleDelete = async (item: InventoryItem) => {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
+      const token = getToken();
       const response = await fetch(`/api/inventory/${item._id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       const data = await response.json();
@@ -49,15 +56,18 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
   const getStatusBadge = (item: InventoryItem) => {
     if (item.status === 'Sold') {
-      return <Badge variant="destructive">Sold</Badge>;
+      return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">Sold</Badge>;
     }
     if (item.availablePieces === 0 && item.availableWeight === 0) {
-      return <Badge variant="destructive">Sold</Badge>;
+      return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">Sold</Badge>;
+    }
+    if (item.status === 'Pending') {
+      return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Pending</Badge>;
     }
     if (item.availablePieces < item.totalPieces || item.availableWeight < item.totalWeight) {
-      return <Badge variant="secondary">Partially Sold</Badge>;
+      return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">Partially Sold</Badge>;
     }
-    return <Badge variant="default">In Stock</Badge>;
+    return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">In Stock</Badge>;
   };
 
   const renderShapeDisplay = (item: InventoryItem) => {
@@ -92,75 +102,75 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="rounded-md border">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Serial Number
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Shape
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Pieces
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Weight (ct)
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Price/Ct
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Total Price
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {inventory.map((item) => (
-                <tr key={item._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <tr key={item._id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                  <td className="p-4 align-middle font-medium">
                     {item.serialNumber}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="p-4 align-middle">
                     {item.category?.name || 'N/A'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="p-4 align-middle">
                     {renderShapeDisplay(item)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="p-4 align-middle">
                     {item.availablePieces || 0} / {item.totalPieces || 0}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="p-4 align-middle">
                     {(item.availableWeight || 0).toFixed(2)} / {(item.totalWeight || 0).toFixed(2)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="p-4 align-middle">
                     ${(item.pricePerCarat || 0).toFixed(2)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="p-4 align-middle">
                     ${(item.totalPrice || 0).toFixed(2)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="p-4 align-middle">
                     {getStatusBadge(item)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="p-4 align-middle">
                     <div className="flex gap-2">
                       <Button
                         variant="ghost"
@@ -177,6 +187,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                         size="sm"
                         onClick={() => setSaleItem(item)}
                         disabled={item.availablePieces === 0 && item.availableWeight === 0}
+                        className={item.availablePieces === 0 && item.availableWeight === 0 ? "" : "text-green-600 hover:text-green-700"}
                       >
                         <ShoppingCart className="w-4 h-4" />
                       </Button>
@@ -184,7 +195,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(item)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-destructive hover:text-destructive/90"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -198,7 +209,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
         {inventory.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No inventory items found</p>
+            <p className="text-muted-foreground">No inventory items found</p>
           </div>
         )}
       </div>

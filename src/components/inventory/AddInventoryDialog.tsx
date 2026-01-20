@@ -7,8 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ShapeSelector } from './ShapeSelector';
+import { CategorySelector } from './CategorySelector';
 import { InventoryItem, ShapeName, AVAILABLE_SHAPES } from '@/types/inventory';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AddInventoryDialogProps {
   open: boolean;
@@ -40,6 +42,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
   });
 
   const [loading, setLoading] = useState(false);
+  const { getToken } = useAuth();
 
   // Reset form when dialog opens/closes or editItem changes
   useEffect(() => {
@@ -94,8 +97,13 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
 
     try {
       // Validation
-      if (!formData.serialNumber || !formData.category) {
-        toast.error('Please fill in all required fields');
+      if (!formData.serialNumber) {
+        toast.error('Please enter a serial number');
+        return;
+      }
+
+      if (!formData.category) {
+        toast.error('Please select a category');
         return;
       }
 
@@ -122,10 +130,13 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       const url = editItem ? `/api/inventory/${editItem._id}` : '/api/inventory';
       const method = editItem ? 'PUT' : 'POST';
 
+      const token = getToken();
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(submitData),
       });
@@ -187,19 +198,15 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
 
           <div>
             <Label htmlFor="category">Category *</Label>
-            <Select
+            <CategorySelector
+              categories={categories}
               value={formData.category}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map(cat => (
-                  <SelectItem key={cat._id} value={cat._id}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+              onCreateCategory={async (name) => {
+                // This will be handled by the CategorySelector internally
+              }}
+              placeholder="Select a category..."
+            />
           </div>
 
           <div>
