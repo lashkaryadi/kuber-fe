@@ -23,9 +23,9 @@ export const Inventory = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("All Categories");
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState("All Status");
-  const [shapeFilter, setShapeFilter] = useState<string>("All Shapes"); // NEW
+  const [shapeFilter, setShapeFilter] = useState<string>("ALL");
   const [categories, setCategories] = useState<{ _id: string; name: string }[]>(
     [],
   ); // Fix: Specify type instead of any
@@ -80,16 +80,16 @@ export const Inventory = () => {
         page,
         limit: 10,
         ...(searchTerm && { search: searchTerm }),
-        ...(categoryFilter !== "All Categories" && {
+        ...(categoryFilter !== "ALL" && {
           category: categoryFilter,
         }),
         ...(statusFilter !== "All Status" && { status: statusFilter }),
-        ...(shapeFilter !== "All Shapes" && { shape: shapeFilter }),
+        ...(shapeFilter !== "ALL" && { shape: shapeFilter }),
       };
 
       const response = await api.getInventory(params);
       setInventory(response.data);
-      setTotalPages(response.meta?.pages || 1);
+      setTotalPages(response.meta?.totalPages || 1);
     } catch (error) {
       console.error("Error fetching inventory:", error);
       toast.error("Failed to fetch inventory");
@@ -98,10 +98,16 @@ export const Inventory = () => {
     }
   }, [page, searchTerm, categoryFilter, statusFilter, shapeFilter]);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [categoryFilter, statusFilter, shapeFilter, searchTerm]);
+
+  // Fetch inventory
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
-  
+
   const handleExport = async () => {
     try {
       await api.exportInventoryExcel();
@@ -166,12 +172,18 @@ export const Inventory = () => {
             className="px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background"
             aria-label="Filter by category" // Fix: Add accessible name
           >
-            <option value="All Categories">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat._id} value={cat._id}>
-                {cat.name}
-              </option>
-            ))}
+            <option key="ALL" value="ALL">All Categories</option>
+            {categories.map((cat) => {
+              const id = (cat._id || cat.id)?.toString();
+
+              if (!id) return null; // 🛡 safety
+
+              return (
+                <option key={id} value={id}>
+                  {cat.name}
+                </option>
+              );
+            })}
           </select>
 
           {/* Status Filter */}
@@ -195,21 +207,37 @@ export const Inventory = () => {
             className="px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background"
             aria-label="Filter by shape" // Fix: Add accessible name
           >
-            <option value="All Shapes">All Shapes</option>
+            <option key="ALL_SHAPES" value="ALL">All Shapes</option>
             {availableShapes.map((shape) => (
-              <option key={shape} value={shape}>
-                {shape}
+              <option key={shape._id} value={shape.name}>
+                {shape.name}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Inventory Table */}
-        <InventoryTable
-          inventory={inventory}
-          loading={loading}
-          onRefresh={fetchInventory}
-        />
+        {/* Loading */}
+        {loading && (
+          <div className="py-10 text-center text-muted-foreground">
+            Loading inventory…
+          </div>
+        )}
+
+        {/* Error - This would need to be handled differently in the actual implementation */}
+        {!loading && inventory.length === 0 && (
+          <div className="py-10 text-center text-muted-foreground">
+            No inventory items match your filters
+          </div>
+        )}
+
+        {/* Table */}
+        {inventory.length > 0 && (
+          <InventoryTable
+            inventory={inventory}
+            loading={loading}
+            onRefresh={fetchInventory}
+          />
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (

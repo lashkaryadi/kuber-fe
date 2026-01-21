@@ -113,26 +113,20 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
               </div>
             </CommandEmpty>
             <CommandGroup>
-              {filteredCategories.map((category) => (
-                <CommandItem
-                  key={category._id}
-                  value={category._id}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue === value ? "" : currentValue);
-                    setOpen(false);
-                    setSearchQuery("");
-                  }}
-                  className="py-2"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === category._id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  {category.name}
-                </CommandItem>
-              ))}
+              {filteredCategories.map((category) => {
+                const id = (category._id || category.id)?.toString();
+                if (!id) return null;
+
+                return (
+                  <CommandItem
+                    key={id}
+                    value={id}
+                    onSelect={() => onChange(id)}
+                  >
+                    {category.name}
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
             {onCreateCategory && filteredCategories.length === 0 && searchQuery && (
               <CommandGroup key="create-new-group">

@@ -175,17 +175,27 @@ const updateInventoryItem = async (id: string, data: any) => {
   }
 };
 
+export interface InventoryResponse {
+  data: any[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 const getInventory = async (params?: any) => {
   try {
-    const response = await apiClient.get("/api/inventory", { params });
+    const response = await apiClient.get<InventoryResponse>("/api/inventory", { params });
     return {
       success: true,
       data: Array.isArray(response.data) ? response.data : response.data?.data || [],
-      meta: response.data?.meta || { pages: 1 }
+      meta: response.data?.meta || { page: 1, limit: 10, total: 0, totalPages: 1 }
     };
   } catch (error) {
     console.error("Error fetching inventory:", error);
-    return { success: false, data: [], meta: { pages: 1 } };
+    return { success: false, data: [], meta: { page: 1, limit: 10, total: 0, totalPages: 1 } };
   }
 };
 
@@ -227,7 +237,12 @@ const getCategories = async (params?: {
 
     return {
       success: true,
-      data: Array.isArray(res.data?.data) ? res.data.data : [],
+      data: Array.isArray(res.data?.data)
+        ? res.data.data.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+          }))
+        : [],
       meta: res.data?.meta || null,
     };
   } catch (error) {
@@ -283,7 +298,10 @@ const deleteCategory = async (id: string) => {
 const getShapes = async () => {
   try {
     const response = await apiClient.get("/api/shapes");
-    return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [] };
+    return {
+      success: true,
+      data: Array.isArray(response.data) ? response.data.map((s: any) => typeof s === 'object' && s.name ? s.name : s) : response.data?.data?.map((s: any) => typeof s === 'object' && s.name ? s.name : s) || []
+    };
   } catch (error) {
     console.error("Error fetching shapes:", error);
     return { success: false, data: [] };

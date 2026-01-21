@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
-import { InventoryShape } from '@/types/inventory';
-import api from '@/services/api';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Trash2 } from "lucide-react";
+import { InventoryShape } from "@/types/inventory";
+import api from "@/services/api";
+import { toast } from "sonner";
 
 interface ShapeSelectorProps {
   shapes: InventoryShape[];
@@ -19,9 +25,12 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
   onChange,
   isSingleShape = false,
 }) => {
+  const [creatingShapeIndex, setCreatingShapeIndex] = useState<number | null>(
+    null,
+  );
   const [availableShapes, setAvailableShapes] = useState<string[]>([]);
   const [isCreatingNewShape, setIsCreatingNewShape] = useState(false);
-  const [newShapeName, setNewShapeName] = useState('');
+  const [newShapeName, setNewShapeName] = useState("");
 
   useEffect(() => {
     fetchShapes();
@@ -30,50 +39,61 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
   const fetchShapes = async () => {
     try {
       const response = await api.getShapes();
-      if (response.data) {
-        setAvailableShapes(response.data);
-      }
+
+      const names = (response.data || []).map((s: any) =>
+        typeof s === "string" ? s : s.name
+      );
+
+      setAvailableShapes(names);
     } catch (error) {
-      console.error('Error fetching shapes:', error);
+      console.error("Error fetching shapes:", error);
     }
   };
 
   const handleCreateShape = async () => {
-    if (!newShapeName.trim()) {
-      toast.error('Please enter a shape name');
+    const shapeName = newShapeName.trim();
+
+    if (!shapeName) {
+      toast.error("Please enter a shape name");
       return;
     }
 
     try {
-      const response = await api.createShape({ name: newShapeName.trim() });
-      if (response.success) {
-        toast.success('Shape created successfully');
+      const response = await api.createShape({ name: shapeName });
 
-        await fetchShapes();
-
-        if (isSingleShape) {
-          onChange([{ shape: newShapeName.trim(), pieces: 0, weight: 0 }]);
-        } else {
-          onChange([...shapes, { shape: newShapeName.trim(), pieces: 0, weight: 0 }]);
-        }
-
-        setNewShapeName('');
-        setIsCreatingNewShape(false);
-      } else {
-        if (response.status === 409) {
-          toast.error('Shape already exists');
-        } else {
-          toast.error('Failed to create shape: ' + (response.message || 'Unknown error'));
-        }
+      if (!response.success) {
+        toast.error(response.message || "Failed to create shape");
+        return;
       }
-    } catch (error: unknown) {
-      const err = error as any;
-      toast.error('Failed to create shape: ' + (err?.message || 'Unknown error'));
+
+      toast.success("Shape created successfully");
+
+      await fetchShapes();
+
+      // 🔥 SINGLE SHAPE MODE
+      if (isSingleShape) {
+        onChange([{ shape: shapeName, pieces: 0, weight: 0 }]);
+      }
+
+      // 🔥 MIX SHAPE MODE (CRITICAL FIX)
+      else if (creatingShapeIndex !== null) {
+        const updated = shapes.map((s, i) =>
+          i === creatingShapeIndex ? { ...s, shape: shapeName } : s,
+        );
+        onChange(updated);
+      }
+
+      setNewShapeName("");
+      setIsCreatingNewShape(false);
+      setCreatingShapeIndex(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to create shape");
     }
   };
 
   const handleAddShape = () => {
-    onChange([...shapes, { shape: '', pieces: 0, weight: 0 }]);
+if (shapes.some(s => !s.shape)) return;
+onChange([...shapes, { shape: '', pieces: 0, weight: 0 }]);
   };
 
   const handleRemoveShape = (index: number) => {
@@ -82,11 +102,11 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
 
   const handleShapeChange = (
     index: number,
-    field: 'shape' | 'pieces' | 'weight',
-    value: string | number
+    field: "shape" | "pieces" | "weight",
+    value: string | number,
   ) => {
     const updatedShapes = shapes.map((s, i) =>
-      i === index ? { ...s, [field]: value } : s
+      i === index ? { ...s, [field]: value } : s,
     );
     onChange(updatedShapes);
   };
@@ -97,10 +117,10 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
     return (
       <div className="space-y-2">
         <Select
-          value={shapes[0]?.shape || ''}
+          value={shapes[0]?.shape || ""}
           onValueChange={(value) => {
-            if (value === 'create_new') {
-              setIsCreatingNewShape(true);
+            if (value === "create_new") {
+              setIsCreatingNewShape(true); // 🔥 THIS IS THE KEY FIX
             } else {
               onChange([{ shape: value, pieces: 0, weight: 0 }]);
             }
@@ -110,9 +130,11 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
             <SelectValue placeholder="Select shape..." />
           </SelectTrigger>
           <SelectContent>
-            {availableShapes.map((shape, index) => (
-              <SelectItem key={`${shape}-${index}`} value={shape}>
-                {shape}
+            {availableShapes
+              .filter(Boolean)
+              .map((shape) => (
+              <SelectItem key={shape._id} value={shape.name}>
+                {shape.name}
               </SelectItem>
             ))}
             <SelectItem value="create_new" className="text-primary">
@@ -128,7 +150,9 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
               value={newShapeName}
               onChange={(e) => setNewShapeName(e.target.value)}
             />
-            <Button size="sm" onClick={handleCreateShape}>Create</Button>
+            <Button size="sm" onClick={handleCreateShape}>
+              Create
+            </Button>
           </div>
         )}
       </div>
@@ -147,14 +171,18 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
       </div>
 
       {shapes.map((shape, index) => (
-        <div key={index} className="grid grid-cols-4 gap-2 items-end">
+        <div
+          key={`${shape.shape}-${index}`}
+          className="grid grid-cols-4 gap-2 items-end"
+        >
           <Select
             value={shape.shape}
             onValueChange={(value) => {
-              if (value === 'create_new') {
+              if (value === "create_new") {
                 setIsCreatingNewShape(true);
+                setCreatingShapeIndex(index);
               } else {
-                handleShapeChange(index, 'shape', value);
+                handleShapeChange(index, "shape", value);
               }
             }}
           >
@@ -162,8 +190,12 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
               <SelectValue placeholder="Shape" />
             </SelectTrigger>
             <SelectContent>
-              {availableShapes.map((s, index) => (
-                <SelectItem key={`${s}-${index}`} value={s}>{s}</SelectItem>
+              {availableShapes
+                .filter(Boolean)
+                .map((shape) => (
+                <SelectItem key={shape._id} value={shape.name}>
+                  {shape.name}
+                </SelectItem>
               ))}
               <SelectItem value="create_new">+ Create New</SelectItem>
             </SelectContent>
@@ -174,7 +206,7 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
             placeholder="Pieces"
             value={shape.pieces}
             onChange={(e) =>
-              handleShapeChange(index, 'pieces', Number(e.target.value))
+              handleShapeChange(index, "pieces", Number(e.target.value))
             }
           />
 
@@ -184,14 +216,11 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
             placeholder="Weight"
             value={shape.weight}
             onChange={(e) =>
-              handleShapeChange(index, 'weight', Number(e.target.value))
+              handleShapeChange(index, "weight", Number(e.target.value))
             }
           />
 
-          <Button
-            variant="ghost"
-            onClick={() => handleRemoveShape(index)}
-          >
+          <Button variant="ghost" onClick={() => handleRemoveShape(index)}>
             <Trash2 className="w-4 h-4 text-destructive" />
           </Button>
         </div>
@@ -204,7 +233,9 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
             value={newShapeName}
             onChange={(e) => setNewShapeName(e.target.value)}
           />
-          <Button size="sm" onClick={handleCreateShape}>Create</Button>
+          <Button size="sm" onClick={handleCreateShape}>
+            Create
+          </Button>
         </div>
       )}
     </div>

@@ -81,6 +81,11 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Debug logging for category selection
+  useEffect(() => {
+    console.log("Category selected:", formData.category);
+  }, [formData.category]);
+
   // Reset or populate form when dialog opens/closes or editItem changes
   useEffect(() => {
     if (open) {
