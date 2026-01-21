@@ -240,6 +240,7 @@ export const Inventory = () => {
             inventory={inventory}
             loading={loading}
             onRefresh={fetchInventory}
+            categories={categories}
           />
         )}
 
