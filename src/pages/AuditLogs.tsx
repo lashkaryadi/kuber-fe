@@ -171,7 +171,7 @@ export default function AuditLogs() {
                 className="border rounded px-2 py-1"
               >
                 {[10, 25, 50, 100].map(n => (
-                  <select key={n} value={n}>{n}</select>
+                  <option key={n} value={n}>{n}</option>
                 ))}
               </select>
             </div>

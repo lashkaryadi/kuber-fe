@@ -12,16 +12,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Pagination } from "@/components/common/Pagination";
-import {
-  getRecycleBinItems,
-  restoreRecycleBinItems,
-  permanentlyDeleteRecycleBinItems,
-  emptyRecycleBin,
-  RecycleBinItem,
-} from "@/services/api";
+import api from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import { Modal } from "@/components/common/Modal";
 import { Label } from "recharts";
+
+interface RecycleBinItem {
+  id: string;
+  entityType: "inventory" | "category";
+  entityId: string;
+  entityData: any;
+  deletedBy: {
+    username?: string;
+    email?: string;
+  };
+  deletedAt: string;
+  expiresAt: string;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function RecycleBin() {
   const [items, setItems] = useState<RecycleBinItem[]>([]);
@@ -54,7 +64,7 @@ export default function RecycleBin() {
   const fetchRecycleBin = async () => {
     setLoading(true);
     try {
-      const response = await getRecycleBinItems({
+      const response = await api.getRecycleBinItems({
         page,
         limit,
         search: searchText || undefined,
@@ -88,7 +98,7 @@ export default function RecycleBin() {
     }
 
     try {
-      const response = await restoreRecycleBinItems(selectedIds);
+      const response = await api.restoreRecycleBinItems(selectedIds);
 
       if (response.success) {
         toast({
@@ -127,7 +137,7 @@ export default function RecycleBin() {
     }
 
     try {
-      const response = await permanentlyDeleteRecycleBinItems(selectedIds);
+      const response = await api.permanentlyDeleteRecycleBinItems(selectedIds);
 
       if (response.success) {
         toast({
@@ -157,9 +167,7 @@ export default function RecycleBin() {
 
   const handleEmptyBin = async () => {
     try {
-      const response = await emptyRecycleBin(
-        entityTypeFilter !== "all" ? entityTypeFilter : undefined
-      );
+      const response = await api.emptyRecycleBin();
 
       if (response.success) {
         toast({

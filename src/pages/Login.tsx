@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import api from '@/services/api';
 export default function LoginPage() {
-  const [email, setemail] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,15 +17,8 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const res = await api.login(email, password);
 
-// 🔥 THIS LINE IS MISSING
-localStorage.setItem("token", res.token);
-
-// optional but good
-localStorage.setItem("user", JSON.stringify(res.user));
-
+    // Validation
     if (!email.trim() || !password.trim()) {
       toast({
         title: 'Validation Error',
@@ -73,9 +66,9 @@ localStorage.setItem("user", JSON.stringify(res.user));
           variant: 'destructive',
         });
       }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -114,7 +107,7 @@ localStorage.setItem("user", JSON.stringify(res.user));
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setemail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email address"
                 className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
                 disabled={loading}

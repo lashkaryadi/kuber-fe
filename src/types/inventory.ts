@@ -1,61 +1,51 @@
-export type ShapeType = 'single' | 'mix';
-
-export type ShapeName = string;
-
-export interface Shape {
+export interface Category {
   _id: string;
   name: string;
+}
+
+export interface InventoryShape {
+  shape: string;
+  pieces: number;
+  weight: number;
 }
 
 export interface InventoryItem {
   _id: string;
   serialNumber: string;
-  category: {
-    _id: string;
-    name: string;
-  };
-  shapeType: ShapeType;
-  singleShape?: ShapeName;
-  shapes?: Shape[];
+
+  category?: Category | null;
+
+  shapeType: 'single' | 'mix';
+  singleShape?: string | null;
+  shapes?: InventoryShape[];
+
   totalPieces: number;
   totalWeight: number;
+
+  /** 🔥 BACKEND DERIVED FIELDS */
   availablePieces: number;
   availableWeight: number;
+
   purchaseCode?: string;
   saleCode?: string;
-  totalPrice?: number; // ✅ ADD THIS
+
+  totalPrice?: number;
+
   dimensions?: {
-    length: number;
-    width: number;
-    height: number;
-    unit: 'mm' | 'cm';
+    length?: number;
+    width?: number;
+    height?: number;
+    unit?: 'mm' | 'cm' | 'inch';
   };
+
   certification?: string;
   location?: string;
-  status: 'In Stock' | 'Pending' | 'Partially Sold' | 'Sold';
+
+  status: 'in_stock' | 'pending' | 'partially_sold' | 'sold';
+
   description?: string;
   images?: string[];
-  displayShapes?: ShapeName[];
-  createdAt: string;
-  updatedAt: string;
-}
 
-export interface SoldShape {
-  shapeName: ShapeName;
-  pieces: number;
-  weight: number;
-  pricePerCarat: number;
-  lineTotal: number;
-}
-
-export interface SaleItem {
-  inventoryId: string;
-  serialNumber: string;
-  category: string;
-  shapeType: ShapeType;
-  singleShape?: SoldShape;
-  soldShapes?: SoldShape[];
-  totalPieces: number;
-  totalWeight: number;
-  totalAmount: number;
+  createdAt?: string;
+  updatedAt?: string;
 }

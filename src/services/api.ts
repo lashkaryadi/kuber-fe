@@ -1,1275 +1,706 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
-/* =======================
+/* ============================
    TYPES
-======================== */
-
-export interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  isDeleted?: boolean;
-  deletedAt?: string;
-  deletedBy?: {
-    username: string;
-    email: string;
-  };
-  createdAt: string;
-}
-
-export interface Shape {
-  name: string;
-  pieces: number;
-  weight: number;
-}
-
-export interface InventoryItem {
-  id: string;
-  serialNumber: string;
-
-  category:
-    | {
-        id: string;
-        name: string;
-      }
-    | string;
-
-  /* ===== NEW BACKEND FIELDS ===== */
-  totalPieces: number;
-  availablePieces: number;
-
-  totalWeight: number;
-  availableWeight: number;
-
-  weightUnit: "carat" | "gram";
-
-  /* ===== SHAPES SUPPORT ===== */
-  shapes?: Shape[];
-
-  /* ===== BACKWARD COMPAT (USED BY UI) ===== */
-  pieces?: number;
-  weight?: number;
-
-  purchaseCode: string;
-  saleCode: string;
-
-  dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
-    unit?: "mm" | "cm" | "inch";
-  };
-
-  certification?: string;
-  location?: string;
-
-  status: "pending" | "in_stock" | "partially_sold" | "sold";
-
-  description?: string;
-  images?: string[];
-
-  createdAt?: string;
-  updatedAt?: string;
-}
-export interface DashboardStats {
-  totalInventory: number;
-  in_stockItems: number;
-  soldItems: number;
-  pendingApproval: number;
-  totalValue: number;
-  inStockValue: number | string;
-  recentSales: SoldItem[];
-}
-
+============================ */
 export interface User {
-  id: string;
+  _id?: string;
+  id?: string;
   username: string;
   email: string;
   role: "admin" | "staff";
-  createdAt: string;
+  createdAt?: string;
 }
 
-export interface SoldItem {
+export interface RecycleBinItem {
   id: string;
-  inventoryItem: {
-    id: string;
-    serialNumber: string;
-    category: {
-      id: string;
-      name: string;
-    };
-    weight: number;
-    weightUnit: string;
-    pieces: number;
-    // ✅ ADD SHAPES SUPPORT
-    shapes?: {
-      name: string;
-      pieces: number;
-      weight: number;
-    }[];
-  };
-  soldPieces: number;
-  soldWeight: number;
-  price: number;
-  currency: string;
-  buyer?: string;
-  soldDate: string;
-  createdAt: string;
-  cancelled?: boolean;
-  cancelledAt?: string;
-  cancelledBy?: {
-    username: string;
-    email: string;
-  };
-}
-
-export interface AuditLog {
-  id: string;
-  action: string;
-  entityType: string;
+  entityType: "inventory" | "category";
   entityId: string;
-  entityName: string;
-  performedBy?: {
-    email: string;
+  entityData: any;
+  deletedBy: {
+    username?: string;
+    email?: string;
   };
+  deletedAt: string;
+  expiresAt: string;
+  ownerId: string;
   createdAt: string;
+  updatedAt: string;
 }
 
-/* =======================
+/* ============================
    AXIOS INSTANCE
-======================== */
+============================ */
 const apiClient = axios.create({
-  baseURL: `${BASE_URL}/api`,
-  withCredentials: true, // ✅ REQUIRED FOR COOKIES
+  baseURL: BASE_URL,
+  headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
-/* =======================
-   TOKEN INTERCEPTOR
-======================== */
+/* ============================
+   TOKEN HELPERS
+============================ */
+const getToken = () => localStorage.getItem("accessToken") || localStorage.getItem("token");
+
+const setToken = (token: string | null) => {
+  if (token) {
+    localStorage.setItem("accessToken", token);
+    localStorage.setItem("token", token);
+  } else {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
+  }
+};
+
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-/* =======================
-   RESPONSE ERROR INTERCEPTOR
-======================== */
 apiClient.interceptors.response.use(
-  res => res,
-  err => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
-);
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as any;
 
-let isRefreshing = false;
-let failedQueue: {
-  resolve: (token: string | null) => void;
-  reject: (error: unknown) => void;
-}[] = [];
-
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach(prom => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
-  });
-  failedQueue = [];
-};
-
-apiClient.interceptors.response.use(
-  res => res,
-  async error => {
-    const originalRequest = error.config;
-
-    // ❌ Do NOT refresh for auth routes
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url.includes("/auth/login") &&
-      !originalRequest.url.includes("/auth/refresh")
-    ) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then(token => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return apiClient(originalRequest);
-          })
-          .catch(err => Promise.reject(err));
-      }
-
+    // If 401 and not a retry attempt, try to refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      isRefreshing = true;
-
+      
       try {
-        const { data } = await apiClient.post("/auth/refresh");
-
-        api.setToken(data.accessToken);
-
-        apiClient.defaults.headers.Authorization =
-          `Bearer ${data.accessToken}`;
-
-        processQueue(null, data.accessToken);
-
-        return apiClient(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
-        api.logout();
+        const refreshResponse = await apiClient.post("/auth/refresh");
+        const newToken = (refreshResponse.data as any).accessToken;
+        
+        if (newToken) {
+          setToken(newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return apiClient(originalRequest);
+        }
+      } catch (refreshError) {
+        // Refresh failed, clear auth and redirect to login
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         window.location.href = "/login";
-        return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
+        return Promise.reject(refreshError);
       }
+    }
+
+    // For 401 without retry or other errors, clear auth
+    if (error.response?.status === 401) {
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
 
     return Promise.reject(error);
   }
 );
 
-/* =======================
-   API
-======================== */
-const api = {
-  /* -------- TOKEN -------- */
-  getToken() {
-    return localStorage.getItem("token");
-  },
+/* ============================
+   AUTH
+============================ */
+const login = async (email: string, password: string) => {
+  const { data } = await apiClient.post("/api/auth/login", { email, password });
 
-  setToken(token: string | null) {
-    if (token) localStorage.setItem("token", token);
-    else localStorage.removeItem("token");
-  },
-
-  logout() {
-    api.setToken(null);
-    localStorage.removeItem("user");
-  },
-
-  /* -------- AUTH -------- */
-  async login(email: string, password: string) {
-    const { data } = await apiClient.post("/auth/login", {
-      email,
-      password,
-    });
-
-    if (data.accessToken) {
-      api.setToken(data.accessToken);
-      localStorage.setItem("user", JSON.stringify(data.user));
-    }
-
-    return data;
-  },
-
-  async register(payload: {
-    username: string;
-    email: string;
-    password: string;
-    role: "admin" | "staff";
-  }) {
-    const { data } = await apiClient.post("/auth/register", payload);
-    return data;
-  },
-
-  async verifyEmailOtp(payload: { email: string; otp: string }) {
-    const { data } = await apiClient.post("/auth/verify-email", payload);
-    return data;
-  },
-
-  async resendEmailOtp(payload: { email: string }) {
-    const { data } = await apiClient.post("/auth/resend-otp", payload);
-    return data;
-  },
-
-  async me() {
-    const { data } = await apiClient.get("/auth/me");
-    return data;
-  },
-
-  /* -------- DASHBOARD -------- */
-  async getDashboardStats() {
-    try {
-      const { data } = await apiClient.get("/dashboard");
-      return { data: data.data };
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to fetch dashboard stats";
-
-      return {
-        error: message,
-      };
-    }
-  },
-
-  /* -------- USERS (ADMIN) -------- */
-
-  // async getUsers() {
-  //   try {
-  //     const { data } = await apiClient.get('/users');
-  //     return { success: true, data };
-  //   } catch (err: any) {
-  //     return {
-  //       success: false,
-  //       message: err?.response?.data?.message || 'Failed to fetch users',
-  //     };
-  //   }
-  // }
-
-  async getUsers(params?: { search?: string }) {
-    try {
-      const { data } = await apiClient.get("/users", { params });
-
-      const users = data.data?.map((u: any) => ({
-        id: u._id, // ✅ MAP _id → id
-        username: u.username,
-        email: u.email,
-        role: u.role,
-        createdAt: u.createdAt,
-      })) || [];
-
-      return { success: true, data: users };
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to fetch users";
-
-      return {
-        success: false,
-        message,
-      };
-    }
-  },
-
-  async exportUsersExcel() {
-    const response = await apiClient.get("/users/export", {
-      responseType: "blob",
-    });
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "users.xlsx";
-    a.click();
-  },
-  async createUser(payload: any) {
-    try {
-      const { data } = await apiClient.post("/users", payload);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "User creation failed",
-      };
-    }
-  },
-
-  async updateUser(id: string, payload: any) {
-    try {
-      const { data } = await apiClient.put(`/users/${id}`, payload);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "User update failed",
-      };
-    }
-  },
-
-  async deleteUser(id: string) {
-    try {
-      await apiClient.delete(`/users/${id}`);
-      return { success: true };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "User delete failed",
-      };
-    }
-  },
-
-  /* -------- CATEGORIES -------- */
-  async getCategories(params?: { search?: string; page?: number; limit?: number }) {
-    const { data } = await apiClient.get("/categories", { params });
-    return data;
-  },
-
-  async exportCategoriesExcel() {
-    const response = await apiClient.get("/categories/export", {
-      responseType: "blob",
-    });
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "categories.xlsx";
-    a.click();
-  },
-
-  async createCategory(payload: { name: string; description?: string }) {
-    const { data } = await apiClient.post("/categories", payload);
-    return data;
-  },
-
-  async updateCategory(id: string, payload: any) {
-    const { data } = await apiClient.put(`/categories/${id}`, payload);
-    return data;
-  },
-
-  async deleteCategory(id: string) {
-    await apiClient.delete(`/categories/${id}`);
-    return true;
-  },
-
-  /* -------- INVENTORY -------- */
-  async bulkUpdateInventory(ids: string[], updates: any) {
-  try {
-    const { data } = await apiClient.put("/inventory/bulk-update", {
-      ids,
-      updates,
-    });
-    return { success: true, data };
-  } catch {
-    return { success: false };
+  if (data.accessToken) {
+    setToken(data.accessToken);
   }
-},
-//   
-/* -------- INVENTORY IMPORT (PREVIEW + CONFIRM) -------- */
 
-async previewInventoryExcel(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  try {
-    const { data } = await apiClient.post(
-      "/inventory/import/preview",
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      }
-    );
-
-    return { success: true, data };
-  } catch (err: any) {
-    return {
-      success: false,
-      message:
-        err?.response?.data?.message || "Excel preview failed",
-    };
-  }
-},
-
-async confirmInventoryImport(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  try {
-    const { data } = await apiClient.post(
-      "/inventory/import/confirm",
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-      }
-    );
-
-    return { success: true, data };
-  } catch (err: any) {
-    return {
-      success: false,
-      message:
-        err?.response?.data?.message || "Excel import failed",
-    };
-  }
-},
-
-async downloadImportReport(rows: any[]) {
-  try {
-    const response = await apiClient.post(
-      "/inventory/import/report",
-      { rows },
-      {
-        responseType: "blob",
-      }
-    );
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "import-validation-report.xlsx";
-    a.click();
-
-    // Clean up the URL object
-    window.URL.revokeObjectURL(url);
-
-    return { success: true };
-  } catch (err: any) {
-    return {
-      success: false,
-      message: err?.response?.data?.message || "Failed to download report",
-    };
-  }
-},
-
-
-  async importInventoryExcel(file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const { data } = await apiClient.post("/inventory/import", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Import failed",
-      };
-    }
-  },
-
-  async exportInventoryExcel() {
-    const response = await apiClient.get("/inventory/export", {
-      responseType: "blob",
-    });
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "inventory.xlsx";
-    a.click();
-  },
-
-  async exportSoldItemsExcel() {
-    const response = await apiClient.get("/sold/export", {
-      responseType: "blob",
-    });
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "sold-items.xlsx";
-    a.click();
-  },
-
-  async getInventory(params?: {
-  search?: string;
-  category?: string;
-  status?: string;
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-}) {
-  const { data } = await apiClient.get("/inventory", { params });
-
-  return {
-    data: Array.isArray(data?.data) ? data.data : [],
-    meta: data?.meta || null,
-  };
-}
-,
-
-  async createInventoryItem(payload: any) {
-    try {
-      const { data } = await apiClient.post("/inventory", payload);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message:
-          err?.response?.data?.message || "Failed to create inventory item",
-        field: err?.response?.data?.field, // 👈 serialNumber
-      };
-    }
-  },
-
-  async updateInventoryItem(id: string, payload: any) {
-    try {
-      const { data } = await apiClient.put(`/inventory/${id}`, payload);
-
-      return {
-        success: true,
-        data,
-      };
-    } catch (err: any) {
-      return {
-        success: false,
-        message:
-          err?.response?.data?.message || "Failed to update inventory item",
-        field: err?.response?.data?.field,
-      };
-    }
-  },
-
-  async deleteInventoryItem(id: string) {
-    await apiClient.delete(`/inventory/${id}`);
-    return true;
-  },
-
-  async getInventoryShapes() {
-    const { data } = await apiClient.get("/inventory/shapes");
-    return data;
-  },
-
-  async getApprovedInventory() {
-    try {
-      const { data } = await apiClient.get("/inventory", {
-        params: { status: "in_stock" },
-      });
-      // Handle both old and new response formats for backward compatibility
-      const inventoryData = Array.isArray(data) ? data : (data?.data || []);
-      return { success: true, data: inventoryData };
-    } catch (err: any) {
-      return {
-        success: false,
-        message:
-          err?.response?.data?.message || "Failed to fetch in_stock inventory",
-      };
-    }
-  },
-
-  async getInventoryForSale() {
-    try {
-      const { data } = await apiClient.get("/inventory", {
-        params: {
-          status: ["in_stock", "partially_sold"],
-        },
-      });
-      return { success: true, data: data.data || [] };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Failed to fetch inventory for sale",
-      };
-    }
-  },
-
-  /* -------- SOLD -------- */
-  // async getSoldItems() {
-  //   const { data } = await apiClient.get("/sold");
-  //   return data;
-  // },
-  async getSales(params?: { page?: number; limit?: number; sortOrder?: "asc" | "desc" }) {
-    try {
-      const { data } = await apiClient.get("/sales", { params });
-      return { success: true, data: data.data, meta: data.meta };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Failed to fetch sales",
-        data: [],
-        meta: null
-      };
-    }
-  },
-
-  async markAsSold(payload: {
-    inventoryId: string;
-    soldPieces: number;
-    soldWeight: number;
-    price: number;
-    currency: string;
-    soldDate: string;
-    buyer?: string;
-  }) {
-    const res = await apiClient.post("/sold/mark-as-sold", payload);
-
-    return {
-      success: res.data?.success === true,
-      message: res.data?.message,
-      data: res.data?.data,
-    };
-  },
-  async undoSold(soldId: string) {
-    try {
-      await apiClient.delete(`/sold/${soldId}/undo`);
-      return { success: true };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Undo failed",
-      };
-    }
-  },
-
-  async updateSold(
-    soldId: string,
-    payload: { price: number; soldDate: string; buyer?: string }
-  ) {
-    try {
-      const { data } = await apiClient.put(`/sold/${soldId}`, payload);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Update failed",
-      };
-    }
-  },
-
-  async sellInventoryItem(payload: {
-    inventoryId: string;
-    soldShapes: {
-      shapeName: string;
-      pieces: number;
-      weight: number;
-      pricePerCarat: number;
-      lineTotal: number;
-    }[];
-    customer?: { name: string };
-    invoiceNumber?: string;
-  }) {
-    try {
-      const { data } = await apiClient.post(`/sales/sell`, payload);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Sell failed",
-      };
-    }
-  },
-
-  async undoSale(saleId: string) {
-    try {
-      const { data } = await apiClient.post(`/sales/${saleId}/undo`);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Undo sale failed",
-      };
-    }
-  },
-
-  async getShapes() {
-    try {
-      const { data } = await apiClient.get("/shapes");
-      return { success: true, data: data.data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Failed to fetch shapes",
-      };
-    }
-  },
-
-  async createShape(payload: { name: string }) {
-    try {
-      const { data } = await apiClient.post("/shapes", payload);
-      return { success: true, data: data.data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Failed to create shape",
-      };
-    }
-  },
-
-  // async undoSold(soldId: string) {
-  //   try {
-  //     await apiClient.delete(`/sold/${soldId}/undo`);
-  //     return { success: true };
-  //   } catch (err: any) {
-  //     return {
-  //       success: false,
-  //       message:
-  //         err?.response?.data?.message ||
-  //         "Failed to undo sold item",
-  //     };
-  //   }
-  // },
-  // async updateSold(
-  //   soldId: string,
-  //   payload: {
-  //     price: number;
-  //     soldDate: string;
-  //     buyer?: string;
-  //   }
-  // ) {
-  //   try {
-  //     const { data } = await apiClient.put(`/sold/${soldId}`, payload);
-  //     return { success: true, data };
-  //   } catch (err: any) {
-  //     return {
-  //       success: false,
-  //       message:
-  //         err?.response?.data?.message ||
-  //         "Failed to update sold item",
-  //     };
-  //   }
-  // },
-
-  // async markAsSold(inventoryId: string, payload: ¯¸any) {
-  //   const { data } = await apiClient.post(`/sold/${inventoryId}`, payload);
-  //   return data;
-  // },
-  // async markAsSold(payload: {
-  //   inventoryId: string;
-  //   price: number;
-  //   currency: string;
-  //   soldDate: string;
-  //   buyer?: string;
-  // }) {
-  //   try {
-  //     const { data } = await apiClient.post("/sold", payload);
-  //     return { success: true, data };
-  //   } catch (err: any) {
-  //     return {
-  //       success: false,
-  //       message: err?.response?.data?.message || "Failed to mark item as sold",
-  //     };
-  //   }
-  // },
-
-  //   async generateInvoice(payload: {
-  //   packagingId: string;
-  //   keptItemIds: string[];
-  // }) {
-  //   const { data } = await apiClient.post("/invoices/generate", payload);
-  //   return data;
-  // },
-
-  /* -------- PACKAGING -------- */
-  async getPackaging() {
-    const { data } = await apiClient.get("/packaging");
-    return data;
-  },
-
-  async getPackagingById(id: string) {
-    const { data } = await apiClient.get(`/packaging/${id}`);
-    return data;
-  },
-
-  /* -------- INVOICES -------- */
-
-//   async downloadInvoicePDF(invoiceId: string) {
-//   const response = await apiClient.get(
-//     `/invoices/${invoiceId}/pdf`,
-//     {
-//       responseType: "blob", // 🔥 IMPORTANT
-//     }
-//   );
-
-//   // Create downloadable link
-//   const blob = new Blob([response.data], {
-//     type: "application/pdf",
-//   });
-
-//   const url = window.URL.createObjectURL(blob);
-
-//   const a = document.createElement("a");
-//   a.href = url;
-//   a.download = `invoice-${invoiceId}.pdf`; // you can improve name later
-//   document.body.appendChild(a);
-//   a.click();
-
-//   document.body.removeChild(a);
-//   window.URL.revokeObjectURL(url);
-// },
-
-  async getInvoiceBySold(soldId: string) {
-    const { data } = await apiClient.get(`/invoices/sold/${soldId}`);
-    return data;
-  },
-  async generateInvoice(payload: {
-    packagingId: string;
-    keptItemIds: string[];
-    pricePerUnit: number;
-  }) {
-    const { data } = await apiClient.post("/invoices/generate", payload);
-    return data;
-  },
-
-  async createBulkInvoice(soldIds: string[]) {
-    const { data } = await apiClient.post("/invoices/bulk-create", {
-      soldIds,
-    });
-    return data;
-  },
-
-  async generateInvoiceFromSold(soldIds: string[]) {
-    const { data } = await apiClient.post("/invoices/from-sold", {
-      soldIds,
-    });
-    return data;
-  },
-
-  async getInvoiceById(id: string) {
-    const { data } = await apiClient.get(`/invoices/${id}`);
-    return data;
-  },
-
-  async updateInvoice(id: string, payload: any) {
-    const { data } = await apiClient.put(`/invoices/${id}`, payload);
-    return data;
-  },
-
-  async lockInvoice(id: string) {
-    const { data } = await apiClient.post(`/invoices/${id}/lock`);
-    return data;
-  },
-
-  async downloadInvoicePDF(invoiceId: string) {
-    const response = await apiClient.get(
-      `/invoices/${invoiceId}/pdf`,
-      { responseType: "blob" }
-    );
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `invoice-${invoiceId}.pdf`;
-    a.click();
-  },
-
-  async getProfitAnalytics() {
-    const { data } = await apiClient.get("/analytics/profit");
-    return data;
-  },
-
-  async getMonthlyProfitAnalytics() {
-    const { data } = await apiClient.get("/analytics/monthly-profit");
-    return data;
-  },
-
-  async getCategoryProfitAnalytics() {
-    const { data } = await apiClient.get("/analytics/category-profit");
-    return data;
-  },
-
-  async exportProfitExcel() {
-    const res = await apiClient.get("/analytics/profit/export", {
-      responseType: "blob",
-    });
-
-    const url = window.URL.createObjectURL(res.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "profit-report.xlsx";
-    a.click();
-  },
-
-  async generateBulkInvoice(payload: { soldIds: string[] }) {
-    const { data } = await apiClient.post("/invoices/bulk", payload);
-    return data;
-  },
-
-  async getAuditLogs(params?: {
-    page?: number;
-    limit?: number;
-    action?: string;
-    inventoryId?: string;
-  }) {
-    const { data } = await apiClient.get("/audit-logs", { params });
-    return data;
-  },
-
-  async exportAuditLogs() {
-    const response = await apiClient.get("/audit-logs/export", {
-      responseType: "blob",
-    });
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "audit-logs.xlsx";
-    a.click();
-  },
-
-  async exportAuditLogsExcel() {
-    const response = await apiClient.get("/audit-logs/export", {
-      responseType: "blob",
-    });
-
-    const url = window.URL.createObjectURL(response.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "audit-logs.xlsx";
-    a.click();
-
-    window.URL.revokeObjectURL(url);
-  },
-
-  async clearAuditLogs() {
-    const { data } = await apiClient.delete("/audit-logs/clear");
-    return data;
-  },
-
-  async uploadImage(file: File) {
-    const formData = new FormData();
-    formData.append("image", file);
-
-    try {
-      const { data } = await apiClient.post("/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      return { data };
-    } catch (err: any) {
-      return {
-        error: err?.response?.data?.message || "Image upload failed",
-      };
-    }
-  },
-
-  async deleteImage(payload: {
-    imageUrl: string;
-    inventoryId: string;
-  }) {
-    try {
-      await apiClient.delete("/upload", { data: payload });
-      return { success: true };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err?.response?.data?.message || "Delete failed",
-      };
-    }
-  },
+  return data;
 };
 
-// // PREVIEW EXCEL
-// export const previewInventoryExcel = async (file: File) => {
-//   const formData = new FormData();
-//   formData.append("file", file);
-
-//   const res = await fetch("/api/inventory/import/preview", {
-//     method: "POST",
-//     headers: {
-//       Authorization: `Bearer ${localStorage.getItem("token")}`,
-//     },
-//     body: formData,
-//   });
-
-//   return res.json();
-// };
-
-// // CONFIRM IMPORT
-// export const confirmInventoryImport = async (file: File) => {
-//   const formData = new FormData();
-//   formData.append("file", file);
-
-//   const res = await fetch("/api/inventory/import", {
-//     method: "POST",
-//     headers: {
-//       Authorization: `Bearer ${localStorage.getItem("token")}`,
-//     },
-//     body: formData,
-//   });
-
-//   return res.json();
-// };
-
-export default api;
-// =======================
-// COMPANY SETTINGS API
-// =======================
-
-export interface CompanyPayload {
-  companyName: string;
-  gstNumber?: string;
-  taxRate?: number;
-  phone?: string;
-  email?: string;
-  address?: string;
-  logoUrl?: string;
-  signatureUrl?: string;
-
-}
-
-export const getCompany = async (): Promise<CompanyPayload | null> => {
-  try {
-    const res = await apiClient.get("/company");
-    return res.data;
-  } catch (err) {
-    return null;
-  }
+const logout = () => {
+  setToken(null);
+  localStorage.removeItem("user");
 };
 
-export const saveCompany = async (
-  payload: CompanyPayload
-): Promise<boolean> => {
-  try {
-    await apiClient.post("/company", payload);
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
-
-export const uploadCompanyImage = async (file: File) => {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await apiClient.post("/upload-company/image", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
-  return res.data.url;
-};
-
-export const uploadInventoryImage = async (file: File) => {
-  const fd = new FormData();
-  fd.append("file", file);
-
-  const res = await apiClient.post(
-    "/inventory-upload/image",
-    fd,
-    {
-      headers: { "Content-Type": "multipart/form-data" },
-    }
-  );
-
-  return res.data.url as string;
-}
-
-export const deleteInventoryImage = async (url: string) => {
-  await apiClient.delete("/inventory-upload/image", {
-    data: { url },
-  });
-}
-
-/* =========================
-   RECYCLE BIN API
-========================= */
-export interface RecycleBinItem {
-  id: string;
-  entityType: "inventory" | "category";
-  entityData: Record<string, unknown>;
-  deletedBy: {
-    username: string;
-    email: string;
-  };
-  deletedAt: string;
-  expiresAt: string;
-}
-
-export const getRecycleBinItems = async (params?: {
-  page?: number;
-  limit?: number;
-  search?: string;
-  entityType?: string;
+const register = async (payload: {
+  username: string;
+  email: string;
+  password: string;
+  role?: "admin" | "staff";
 }) => {
+  const { data } = await apiClient.post("/api/auth/register", payload);
+  return data;
+};
+
+const verifyEmailOtp = async (email: string, otp: string) => {
+  const { data } = await apiClient.post("/api/auth/verify-email", { email, otp });
+  return data;
+};
+
+const resendEmailOtp = async (email: string) => {
+  const { data } = await apiClient.post("/api/auth/resend-otp", { email });
+  return data;
+};
+
+/* ============================
+   INVENTORY
+============================ */
+const createInventoryItem = async (data: any) => {
   try {
-    const { data } = await apiClient.get("/recycle-bin", { params });
+    const response = await apiClient.post("/api/inventory", data);
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error creating inventory:", error);
+    const err = error as any;
+    return {
+      success: false,
+      data: null,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+const updateInventoryItem = async (id: string, data: any) => {
+  try {
+    const response = await apiClient.put(`/api/inventory/${id}`, data);
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error updating inventory:", error);
+    const err = error as any;
+    return {
+      success: false,
+      data: null,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+const getInventory = async (params?: any) => {
+  try {
+    const response = await apiClient.get("/api/inventory", { params });
     return {
       success: true,
-      data: data.data || [],
-      meta: data.meta || null,
+      data: Array.isArray(response.data) ? response.data : response.data?.data || [],
+      meta: response.data?.meta || { pages: 1 }
     };
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error
-        ? err.message
-        : "Failed to fetch recycle bin";
+  } catch (error) {
+    console.error("Error fetching inventory:", error);
+    return { success: false, data: [], meta: { pages: 1 } };
+  }
+};
 
+const getInventoryById = async (id: string) => {
+  try {
+    const response = await apiClient.get(`/api/inventory/${id}`);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("Error fetching inventory item:", error);
+    return { success: false, data: null };
+  }
+};
+
+const deleteInventoryItem = async (id: string) => {
+  try {
+    const response = await apiClient.delete(`/api/inventory/${id}`);
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error deleting inventory:", error);
+    const err = error as any;
     return {
       success: false,
-      message,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+/* ============================
+   CATEGORIES
+============================ */
+const getCategories = async (params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+}) => {
+  try {
+    const res = await apiClient.get("/api/categories", { params });
+
+    return {
+      success: true,
+      data: Array.isArray(res.data?.data) ? res.data.data : [],
+      meta: res.data?.meta || null,
+    };
+  } catch (error) {
+    return {
+      success: false,
       data: [],
       meta: null,
     };
   }
 };
 
-export const restoreRecycleBinItems = async (ids: string[]) => {
+const createCategory = async (payload: any) => {
   try {
-    const { data } = await apiClient.post("/recycle-bin/restore", { ids });
-    return {
-      success: true,
-      message: data.message,
-      restored: data.restored,
-      failed: data.failed,
-    };
-  } catch (err: unknown) {
+    const response = await apiClient.post("/api/categories", payload);
+    return { success: true, data: response.data };
+  } catch (error: any) {
     const message =
-      err instanceof Error
-        ? err.message
-        : "Failed to restore items";
+      error?.response?.status === 409
+        ? "Category already exists"
+        : error?.response?.data?.message || "Failed to create category";
 
     return {
       success: false,
       message,
+      status: error?.response?.status,
     };
   }
 };
 
-export const permanentlyDeleteRecycleBinItems = async (ids: string[]) => {
+const updateCategory = async (id: string, payload: any) => {
   try {
-    const { data } = await apiClient.delete("/recycle-bin/delete", {
-      data: { ids },
+    const response = await apiClient.put(`/api/categories/${id}`, payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("Error updating category:", error);
+    return { success: false, data: null };
+  }
+};
+
+const deleteCategory = async (id: string) => {
+  try {
+    const response = await apiClient.delete(`/api/categories/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting category:", error);
+    return { success: false, message: (error as Error).message };
+  }
+};
+
+/* ============================
+   SHAPES
+============================ */
+const getShapes = async () => {
+  try {
+    const response = await apiClient.get("/api/shapes");
+    return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [] };
+  } catch (error) {
+    console.error("Error fetching shapes:", error);
+    return { success: false, data: [] };
+  }
+};
+
+const createShape = async (payload: any) => {
+  try {
+    const response = await apiClient.post("/api/shapes", payload);
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error creating shape:", error);
+    const err = error as any;
+    return {
+      success: false,
+      data: null,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+const getInventoryShapes = async () => {
+  try {
+    const response = await getShapes();
+    if (response.success && Array.isArray(response.data)) {
+      return {
+        success: true,
+        data: response.data.map((shape: any) => shape.name || shape),
+      };
+    }
+    return {
+      success: true,
+      data: [],
+    };
+  } catch (error) {
+    console.error("Error fetching inventory shapes:", error);
+    return {
+      success: false,
+      data: [],
+    };
+  }
+};
+
+/* ============================
+   UPLOADS
+============================ */
+const uploadImage = async (file: File) => {
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await apiClient.post("/api/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
-    return {
-      success: true,
-      message: data.message,
-      deleted: data.deleted,
-      failed: data.failed,
-    };
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error
-        ? err.message
-        : "Failed to delete items";
-
-    return {
-      success: false,
-      message,
-    };
+    return { data: { url: response.data?.url || response.data } };
+  } catch (error) {
+    console.error("Error uploading image:", error);
+    return { data: null, error: (error as Error).message };
   }
 };
 
-export const emptyRecycleBin = async (entityType?: string) => {
+/* ============================
+   SALES
+============================ */
+const sellInventory = async (data: any) => {
   try {
-    const { data } = await apiClient.delete("/recycle-bin/empty", {
-      data: { entityType },
+    const response = await apiClient.post("/api/sales", data);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("Error selling inventory:", error);
+    return { success: false, error: (error as Error).message };
+  }
+};
+
+const getSoldItems = async (params?: any) => {
+  try {
+    const response = await apiClient.get("/api/sales", { params });
+    return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [] };
+  } catch (error) {
+    console.error("Error fetching sold items:", error);
+    return { success: false, data: [] };
+  }
+};
+
+const undoSale = async (saleId: string) => {
+  try {
+    const response = await apiClient.post(`/api/sales/${saleId}/undo`);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("Error undoing sale:", error);
+    return { success: false, error: (error as Error).message };
+  }
+};
+
+/* ============================
+   USERS
+============================ */
+const getUsers = async () => {
+  try {
+    const response = await apiClient.get("/api/users");
+    return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [] };
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return { success: false, data: [] };
+  }
+};
+
+const createUser = async (payload: any) => {
+  try {
+    const response = await apiClient.post("/api/users", payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("Error creating user:", error);
+    return { success: false, error: (error as Error).message };
+  }
+};
+
+const updateUser = async (id: string, payload: any) => {
+  try {
+    const response = await apiClient.put(`/api/users/${id}`, payload);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("Error updating user:", error);
+    return { success: false, error: (error as Error).message };
+  }
+};
+
+const deleteUser = async (id: string) => {
+  try {
+    await apiClient.delete(`/api/users/${id}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return { success: false };
+  }
+};
+
+const exportUsersExcel = async () => {
+  try {
+    const response = await apiClient.get("/api/users/export/excel", {
+      responseType: "blob",
     });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "users.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    return { success: true };
+  } catch (error) {
+    console.error("Error exporting users:", error);
+    return { success: false };
+  }
+};
+
+/* ============================
+   DASHBOARD
+============================ */
+const getDashboardStats = async () => {
+  try {
+    const response = await apiClient.get("/api/dashboard");
     return {
       success: true,
-      message: data.message,
-      deleted: data.deleted,
-      failed: data.failed,
+      data: response.data || {
+        totalInventory: 0,
+        inStockItems: 0,
+        soldItems: 0,
+        pendingApproval: 0,
+        totalValue: 0,
+        inStockValue: 0,
+        recentSales: [],
+      },
     };
-  } catch (err: unknown) {
-    const message =
-      err instanceof Error
-        ? err.message
-        : "Failed to empty recycle bin";
-
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
     return {
       success: false,
-      message,
+      data: {
+        totalInventory: 0,
+        inStockItems: 0,
+        soldItems: 0,
+        pendingApproval: 0,
+        totalValue: 0,
+        inStockValue: 0,
+        recentSales: [],
+      },
     };
   }
 };
 
+/* ============================
+   COMPANY / SETTINGS
+============================ */
+const getCompany = async () => {
+  try {
+    const response = await apiClient.get("/api/company");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching company:", error);
+    return null;
+  }
+};
 
-/* =========================
-   ANALYTICS API
-========================= */
-export const getProfitAnalytics = () =>
-  apiClient.get("/analytics/profit").then(res => res.data);
+const saveCompany = async (payload: any) => {
+  try {
+    await apiClient.post("/api/company", payload);
+    return true;
+  } catch (error) {
+    console.error("Error saving company:", error);
+    return false;
+  }
+};
 
-export const exportProfitExcel = () =>
-  apiClient.get("/analytics/profit/export", { responseType: "blob" });
+const uploadCompanyImage = async (file: File, type: "logo" | "signature") => {
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("type", type);
+    const response = await apiClient.post("/api/company/upload", formData);
+    return response.data?.url || "";
+  } catch (error) {
+    console.error("Error uploading company image:", error);
+    return "";
+  }
+};
 
-/* =========================
-   ANALYTICS EXPORT API
-========================= */
-export const exportAnalyticsExcel = () =>
-  apiClient.get("/analytics/export", { responseType: "blob" });
+/* ============================
+   RECYCLE BIN
+============================ */
+const restoreRecycleBinItems = async (ids: string[]) => {
+  try {
+    const response = await apiClient.post("/api/recycle-bin/restore", { ids });
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error restoring recycle bin items:", error);
+    const err = error as any;
+    return {
+      success: false,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
 
+const permanentlyDeleteRecycleBinItems = async (ids: string[]) => {
+  try {
+    const response = await apiClient.delete("/api/recycle-bin/delete", { data: { ids } });
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error permanently deleting recycle bin items:", error);
+    const err = error as any;
+    return {
+      success: false,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+const emptyRecycleBin = async () => {
+  try {
+    const response = await apiClient.post("/api/recycle-bin/empty");
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error emptying recycle bin:", error);
+    const err = error as any;
+    return {
+      success: false,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+const getRecycleBinItems = async (params?: any) => {
+  try {
+    const response = await apiClient.get("/api/recycle-bin", { params });
+    return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [], meta: response.data?.meta || { pages: 1 } };
+  } catch (error: unknown) {
+    console.error("Error fetching recycle bin:", error);
+    const err = error as any;
+    return {
+      success: false,
+      data: [],
+      meta: { pages: 1 },
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+const restoreFromRecycleBin = async (id: string) => {
+  try {
+    const response = await apiClient.post(`/api/recycle-bin/${id}/restore`);
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error restoring from recycle bin:", error);
+    const err = error as any;
+    return {
+      success: false,
+      message: err?.response?.data?.message || err.message,
+      status: err?.response?.status
+    };
+  }
+};
+
+/* ============================
+   ANALYTICS
+============================ */
+const getAnalytics = async (params?: any) => {
+  try {
+    const response = await apiClient.get("/api/analytics", { params });
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error("Error fetching analytics:", error);
+    return { success: false, data: {} };
+  }
+};
+
+/* ============================
+   EXPORT INVENTORY
+============================ */
+const exportInventoryExcel = async () => {
+  const res = await apiClient.get('/api/inventory/export/excel', {
+    responseType: 'blob',
+  });
+
+  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', 'inventory.xlsx');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  return { success: true };
+};
+
+/* ============================
+   AUDIT LOGS
+============================ */
+const getAuditLogs = async (params?: any) => {
+  try {
+    const response = await apiClient.get("/api/audit-logs", { params });
+    return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [] };
+  } catch (error) {
+    console.error("Error fetching audit logs:", error);
+    return { success: false, data: [] };
+  }
+};
+
+/* ============================
+   EXPORT DEFAULT API
+============================ */
+const api = {
+  // Auth
+  getToken,
+  setToken,
+  login,
+  logout,
+  register,
+  verifyEmailOtp,
+  resendEmailOtp,
+
+  // Inventory
+  createInventoryItem,
+  updateInventoryItem,
+  getInventory,
+  getInventoryById,
+  deleteInventoryItem,
+  exportInventoryExcel,
+
+  // Categories & Shapes
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getShapes,
+  createShape,
+  getInventoryShapes,
+
+  // Uploads
+  uploadImage,
+
+  // Sales
+  sellInventory,
+  getSoldItems,
+  undoSale,
+
+  // Users
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  exportUsersExcel,
+
+  // Dashboard
+  getDashboardStats,
+
+  // Company
+  getCompany,
+  saveCompany,
+  uploadCompanyImage,
+
+  // Recycle Bin
+  emptyRecycleBin,
+  getRecycleBinItems,
+  restoreFromRecycleBin,
+  restoreRecycleBinItems,
+  permanentlyDeleteRecycleBinItems,
+
+  // Analytics
+  getAnalytics,
+
+  // Audit Logs
+  getAuditLogs,
+};
+
+export default api;

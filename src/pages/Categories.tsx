@@ -37,14 +37,20 @@ export default function Categories() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const data = await api.getCategories({
+      const res = await api.getCategories({
         search: globalQuery,
         page,
         limit
       }); // Pass search param and pagination
-      setCategories(Array.isArray(data.data) ? data.data : []);
-      setMeta(data.meta);
+      if (res.success) {
+        setCategories(res.data); // ✅ ONLY data array
+        setMeta(res.meta);
+      } else {
+        setCategories([]);
+        setMeta(null);
+      }
     } catch (err) {
+      console.error(err);
       toast({
         title: "Error",
         description: "Failed to fetch categories",
@@ -132,7 +138,16 @@ const handleSubmit = async (e: React.FormEvent) => {
       });
     } else {
       // ✅ ADD MODE → CREATE
-      await api.createCategory(payload);
+      const res = await api.createCategory(payload);
+
+      if (!res.success) {
+        toast({
+          title: "Error",
+          description: res.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({
         title: "Success",

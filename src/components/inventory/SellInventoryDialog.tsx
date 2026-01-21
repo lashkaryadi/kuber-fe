@@ -206,9 +206,10 @@ export const SellInventoryDialog: React.FC<SellInventoryDialogProps> = ({
       } else {
         toast.error(response.message || 'Failed to complete sale');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error selling item:', error);
-      toast.error(error.response?.data?.message || 'Failed to complete sale');
+      const err = error as any;
+      toast.error(err?.response?.data?.message || 'Failed to complete sale');
     } finally {
       setLoading(false);
     }

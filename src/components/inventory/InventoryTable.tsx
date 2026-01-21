@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { InventoryItem, Category } from '@/types/inventory';
+
 import { AddInventoryDialog } from './AddInventoryDialog';
 import { SellInventoryDialog } from './SellInventoryDialog';
 import { toast } from 'sonner';
@@ -58,9 +59,10 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
       } else {
         toast.error(response.message || 'Failed to delete item');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting item:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete item');
+      const err = error as any;
+      toast.error(err?.response?.data?.message || 'Failed to delete item');
     } finally {
       setDeletingId(null);
     }
@@ -113,8 +115,8 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     if (item.shapeType === 'mix' && item.shapes && item.shapes.length > 0) {
       return (
         <div className="flex flex-wrap gap-1">
-          {item.shapes.slice(0, 2).map((shape, index) => (
-            <Badge key={index} variant="outline" className="text-xs">
+          {item.shapes.slice(0, 2).map((shape) => (
+            <Badge key={`${item._id}-${shape.shape}`} variant="outline" className="text-xs">
               {shape.shape}
             </Badge>
           ))}
@@ -178,6 +180,17 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     );
   }
 
+  // Safe guard: ensure inventory is an array
+  const safeInventory = Array.isArray(inventory) ? inventory : [];
+
+  if (safeInventory.length === 0) {
+    return (
+      <div className="rounded-md border p-8 text-center">
+        <p className="text-muted-foreground">No inventory items found</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="rounded-md border">
@@ -215,7 +228,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {inventory.map((item) => (
+              {safeInventory.map((item) => (
                 <tr
                   key={item._id}
                   className="border-b transition-colors hover:bg-muted/50"
@@ -254,18 +267,20 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                   </td>
                   <td className="p-4 align-middle">
                     <div className="flex gap-1">
-                      {/* Edit Button */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditItem(item);
-                          setIsEditDialogOpen(true);
-                        }}
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      {/* Edit Button (Admin Only) */}
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditItem(item);
+                            setIsEditDialogOpen(true);
+                          }}
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
 
                       {/* Sell Button */}
                       <Button

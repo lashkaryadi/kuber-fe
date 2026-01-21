@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,11 +7,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ShapeSelector } from './ShapeSelector';
 import { CategorySelector } from './CategorySelector';
-import { ImageUpload } from './ImageUpload';
-import { InventoryItem, Category, Shape } from '@/types/inventory';
+import { ImageUpload } from '@/components/common/ImageUpload';
+import { InventoryItem, InventoryShape } from '@/types/inventory'; // Removed Category and Shape (not exported); define locally if needed
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { Loader2 } from 'lucide-react';
+
+// Define Category locally if not exported from types
+interface Category {
+  _id: string;
+  name: string;
+}
 
 interface AddInventoryDialogProps {
   open: boolean;
@@ -25,7 +31,7 @@ interface FormData {
   category: string;
   shapeType: 'single' | 'mix';
   singleShape: string;
-  shapes: Shape[];
+  shapes: InventoryShape[];
   totalPieces: string;
   totalWeight: string;
   purchaseCode: string;
@@ -93,7 +99,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
             length: String(editItem.dimensions?.length || ''),
             width: String(editItem.dimensions?.width || ''),
             height: String(editItem.dimensions?.height || ''),
-            unit: editItem.dimensions?.unit || 'mm'
+            unit:  'mm'
           },
           certification: editItem.certification || '',
           location: editItem.location || '',
@@ -144,12 +150,15 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     setUploading(true);
     try {
       const response = await api.uploadImage(file);
-      if (response.success && response.data?.url) {
+      // Fix: Check for data presence instead of 'success' property
+      if (response.data?.url) {
         setFormData(prev => ({
           ...prev,
           images: [...prev.images, response.data!.url]
         }));
         toast.success('Image uploaded successfully');
+      } else {
+        toast.error('Failed to upload image');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -219,39 +228,52 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     setLoading(true);
 
     try {
-      // Prepare data for API
-      const submitData: any = {
+      const derivedTotals =
+        formData.shapeType === 'mix'
+          ? {
+              totalPieces: formData.shapes.reduce((s, x) => s + x.pieces, 0),
+              totalWeight: formData.shapes.reduce((s, x) => s + x.weight, 0),
+            }
+          : {
+              totalPieces: parseFloat(formData.totalPieces) || 0,
+              totalWeight: parseFloat(formData.totalWeight) || 0,
+            };
+
+      const submitData = {
         category: formData.category || null,
         shapeType: formData.shapeType,
+
+        singleShape:
+          formData.shapeType === 'single' ? formData.singleShape : null,
+
+        shapes:
+          formData.shapeType === 'mix'
+            ? formData.shapes.map(s => ({
+                shape: s.shape,
+                pieces: s.pieces,
+                weight: s.weight,
+              }))
+            : [],
+
+        totalPieces: derivedTotals.totalPieces,
+        totalWeight: derivedTotals.totalWeight,
+
         purchaseCode: formData.purchaseCode,
         saleCode: formData.saleCode,
+
         dimensions: {
           length: parseFloat(formData.dimensions.length) || 0,
           width: parseFloat(formData.dimensions.width) || 0,
           height: parseFloat(formData.dimensions.height) || 0,
-          unit: formData.dimensions.unit
+          unit: formData.dimensions.unit,
         },
+
         certification: formData.certification,
         location: formData.location,
         status: formData.status,
         description: formData.description,
-        images: formData.images
+        images: formData.images,
       };
-
-      if (formData.shapeType === 'single') {
-        submitData.singleShape = formData.singleShape;
-        submitData.totalPieces = parseFloat(formData.totalPieces) || 0;
-        submitData.totalWeight = parseFloat(formData.totalWeight) || 0;
-        submitData.shapes = [];
-      } else {
-        submitData.singleShape = null;
-        submitData.shapes = formData.shapes.map(s => ({
-          shape: s.shape,
-          pieces: s.pieces,
-          weight: s.weight
-        }));
-        // Backend will auto-calculate totals
-      }
 
       let response;
       if (editItem) {
@@ -267,9 +289,9 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       } else {
         toast.error(response.message || 'Failed to save item');
       }
-    } catch (error: any) {
+    } catch (error: unknown) { // Fix: Use unknown instead of any
       console.error('Error saving item:', error);
-      toast.error(error.response?.data?.message || 'Failed to save item');
+      toast.error((error as Error)?.message || 'Failed to save item');
     } finally {
       setLoading(false);
     }
@@ -282,6 +304,12 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
           <DialogTitle>
             {editItem ? 'Edit Inventory Item' : 'Add New Inventory Item'}
           </DialogTitle>
+          <DialogDescription>
+            {editItem
+              ? 'Edit inventory details like category, shape, weight and location.'
+              : 'Add inventory details like category, shape, weight and location.'
+            }
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -341,15 +369,18 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
             {/* Shape Selector */}
             <div className="pt-2">
               <ShapeSelector
-                shapes={formData.shapeType === 'single'
-                  ? (formData.singleShape ? [{ shape: formData.singleShape, pieces: 0, weight: 0 }] : [])
-                  : formData.shapes
+                shapes={
+                  formData.shapeType === 'single'
+                    ? formData.singleShape
+                      ? [{ shape: formData.singleShape, pieces: 1, weight: 0 }]
+                      : []
+                    : formData.shapes
                 }
                 onChange={(shapes) => {
                   if (formData.shapeType === 'single') {
                     setFormData(prev => ({
                       ...prev,
-                      singleShape: shapes.length > 0 ? shapes[0].shape : ''
+                      singleShape: shapes[0]?.shape || ''
                     }));
                   } else {
                     setFormData(prev => ({ ...prev, shapes }));
@@ -480,6 +511,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                   ...prev,
                   dimensions: { ...prev.dimensions, unit: e.target.value as 'mm' | 'cm' }
                 }))}
+                aria-label="Dimension unit" // Fix: Add accessible name
               >
                 <option value="mm">mm</option>
                 <option value="cm">cm</option>
@@ -517,6 +549,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
               className="w-full px-3 py-2 border border-input rounded-md bg-background"
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
+              aria-label="Item status" // Fix: Add accessible name
             >
               <option value="in_stock">In Stock</option>
               <option value="pending">Pending</option>

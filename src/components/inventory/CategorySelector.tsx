@@ -59,9 +59,13 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
       } else {
         toast.error(response.message || 'Failed to create category');
       }
-    } catch (error) {
-      console.error('Error creating category:', error);
-      toast.error('Failed to create category');
+    } catch (error: unknown) {
+      const err = error as any;
+      if (err?.response?.status === 409) {
+        toast.error('Category already exists');
+      } else {
+        toast.error('Failed to create category: ' + (err?.response?.data?.message || err.message));
+      }
     }
   };
 
@@ -131,7 +135,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
               ))}
             </CommandGroup>
             {onCreateCategory && filteredCategories.length === 0 && searchQuery && (
-              <CommandGroup>
+              <CommandGroup key="create-new-group">
                 <CommandItem
                   onSelect={() => {
                     handleCreateCategory(searchQuery);

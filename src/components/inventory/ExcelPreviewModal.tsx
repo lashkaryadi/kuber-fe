@@ -43,7 +43,7 @@ export function ExcelPreviewModal({
           <tbody>
             {rows.map((row, i) => (
               <tr
-                key={i}
+                key={row.id || row.serialNumber || `row-${i}`}
                 className={
                   row.isDuplicate
                     ? "bg-red-100"

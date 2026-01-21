@@ -8,7 +8,7 @@ import { SearchProvider } from "./contexts/SearchContext";
 import Packaging from "@/pages/Packaging";
 import PackagingDetails from "@/pages/PackagingDetails";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import InvoicePreview from "@/pages/InvoicePreview";
+// import InvoicePreview from "@/pages/InvoicePreview";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
@@ -19,8 +19,8 @@ import Users from "./pages/Users";
 import NotFound from "./pages/NotFound";
 import AuditLogs from "./pages/AuditLogs";
 import VerifyEmail from "./pages/VerifyEmail";
-import SettingsCompany from "@/pages/SettingsCompany";
-import Analytics from "@/pages/Analytics";
+// import SettingsCompany from "@/pages/SettingsCompany";
+// import Analytics from "@/pages/Analytics";
 import RecycleBin from "@/pages/RecycleBin";
 
 const queryClient = new QueryClient();
@@ -78,7 +78,7 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route path="/settings/company" element={<SettingsCompany />} />
+              {/* <Route path="/settings/company" element={<SettingsCompany />} /> */}
 
               <Route
                 path="/audit-logs"
@@ -88,14 +88,14 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
-              <Route
+              {/* <Route
                 path="/analytics"
                 element={
                   <ProtectedRoute>
                     <Analytics />
                   </ProtectedRoute>
                 }
-              />
+              /> */}
               <Route
                 path="/recycle-bin"
                 element={
@@ -107,8 +107,8 @@ const App = () => (
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/packaging" element={<Packaging />} />
               <Route path="/packaging/:id" element={<PackagingDetails />} />
-              <Route path="/invoice/:soldId" element={<InvoicePreview />} />
-              <Route path="/invoice-preview/:id" element={<InvoicePreview />} />
+              {/* <Route path="/invoice/:soldId" element={<InvoicePreview />} />
+              <Route path="/invoice-preview/:id" element={<InvoicePreview />} /> */}
 
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -17,6 +17,7 @@ SelectValue,
 import api, { SoldItem, InventoryItem } from "@/services/api";
 import { toast } from "@/hooks/use-toast";
 import { ShoppingCart } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SoldItems() {
 type PaginationMeta = {
@@ -49,6 +50,10 @@ const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 const [page, setPage] = useState(1);
 const [limit, setLimit] = useState(10); // ✅ NEW: Customizable limit
 const [meta, setMeta] = useState<PaginationMeta | null>(null);
+
+// Role-based permissions
+const { user } = useAuth();
+const isAdmin = user?.role === 'admin';
 
 // Define fetchData before useEffect to avoid TS2448 error
 const fetchData = useCallback(async () => {
@@ -496,8 +501,8 @@ render: (item) => {
   if (item.inventoryItem?.shapes && item.inventoryItem.shapes.length > 0) {
     return (
       <div className="space-y-1">
-        {item.inventoryItem.shapes.map((shape, idx) => (
-          <div key={idx} className="text-xs">
+        {item.inventoryItem.shapes.map((shape) => (
+          <div key={`${item.inventoryItem._id}-${shape.name || shape.shape || Math.random()}`} className="text-xs">
             <span className="font-medium">{shape.name || "Shape"}:</span> {shape.pieces} pcs
           </div>
         ))}
@@ -518,8 +523,8 @@ render: (item) => {
   if (item.inventoryItem?.shapes && item.inventoryItem.shapes.length > 0) {
     return (
       <div className="space-y-1">
-        {item.inventoryItem.shapes.map((shape, idx) => (
-          <div key={idx} className="text-xs">
+        {item.inventoryItem.shapes.map((shape) => (
+          <div key={`${item.inventoryItem._id}-${shape.name || shape.shape || Math.random()}`} className="text-xs">
             <span className="font-medium">{shape.name || "Shape"}:</span> {shape.weight} {item.inventoryItem?.weightUnit ?? "-"}
           </div>
         ))}
@@ -588,17 +593,19 @@ render: (item) => (
 <div className="flex gap-1">
 {/* ❌ REMOVED: Edit button (causes accounting bugs) */}
 
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={item.cancelled} // Disable if sale is cancelled
-        onClick={() => handleUndo(item.id)}
-        title={item.cancelled ? "Cancelled" : "Undo Sale"}
-        className={item.cancelled ? "text-muted-foreground" : "h-10 w-10 text-destructive hover:text-destructive"}
-      >
-        <Trash2 className="h-4 w-4" />
-        {item.cancelled && "Cancelled"} {/* Show cancelled state */}
-      </Button>
+      {isAdmin && (
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={item.cancelled} // Disable if sale is cancelled
+          onClick={() => handleUndo(item.id)}
+          title={item.cancelled ? "Cancelled" : "Undo Sale"}
+          className={item.cancelled ? "text-muted-foreground" : "h-10 w-10 text-destructive hover:text-destructive"}
+        >
+          <Trash2 className="h-4 w-4" />
+          {item.cancelled && "Cancelled"} {/* Show cancelled state */}
+        </Button>
+      )}
 
       <Button
         variant="ghost"

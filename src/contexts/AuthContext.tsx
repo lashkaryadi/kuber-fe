@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: true };
 
     } catch (err: unknown) {
-      const errorResponse = err && typeof err === 'object' && 'response' in err ? (err as any).response : null;
+      const errorResponse = err && typeof err === 'object' && 'response' in err ? (err as { response: { data?: { message?: string; requiresVerification?: boolean; email?: string } } }).response : null;
       const errorMessage = errorResponse?.data?.message || 'Login failed';
 
       if (errorResponse?.data?.requiresVerification) {

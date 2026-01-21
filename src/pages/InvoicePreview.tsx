@@ -219,8 +219,8 @@ export default function InvoicePreview() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {items.length > 0 ? (
                     // New format: multiple items
-                    items.map((item: any, index: number) => (
-                      <tr key={index}>
+                    items.map((item: any) => (
+                      <tr key={item.serialNumber || item._id || `item-${Math.random()}`}>
                         <td className="px-6 py-4">{item.serialNumber}</td>
                         <td className="px-6 py-4">{item.category}</td>
                         <td className="px-6 py-4 text-right">
