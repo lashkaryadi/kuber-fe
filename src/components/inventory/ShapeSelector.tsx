@@ -28,7 +28,9 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
   const [creatingShapeIndex, setCreatingShapeIndex] = useState<number | null>(
     null,
   );
-  const [availableShapes, setAvailableShapes] = useState<string[]>([]);
+  const [availableShapes, setAvailableShapes] = useState<
+    { _id: string; name: string }[]
+  >([]);
   const [isCreatingNewShape, setIsCreatingNewShape] = useState(false);
   const [newShapeName, setNewShapeName] = useState("");
 
@@ -38,15 +40,14 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
 
   const fetchShapes = async () => {
     try {
-      const response = await api.getShapes();
-
-      const names = (response.data || []).map((s: any) =>
-        typeof s === "string" ? s : s.name
-      );
-
-      setAvailableShapes(names);
+      const res = await api.getShapes();
+      // Safely handle response data
+      const shapes = res.success && Array.isArray(res.data) ? res.data : [];
+      setAvailableShapes(shapes.filter((s: { _id?: string; name?: string }) => s && s._id && s.name));
     } catch (error) {
       console.error("Error fetching shapes:", error);
+      toast.error("Failed to load shapes");
+      setAvailableShapes([]); // Set empty array on error
     }
   };
 
@@ -86,14 +87,18 @@ export const ShapeSelector: React.FC<ShapeSelectorProps> = ({
       setNewShapeName("");
       setIsCreatingNewShape(false);
       setCreatingShapeIndex(null);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to create shape");
+    } catch (err: unknown) {
+      const error = err as Error;
+      toast.error(error?.message || "Failed to create shape");
     }
   };
 
   const handleAddShape = () => {
-if (shapes.some(s => !s.shape)) return;
-onChange([...shapes, { shape: '', pieces: 0, weight: 0 }]);
+    if (shapes && shapes.some(s => !s.shape)) {
+      toast.error("Please complete all shape entries before adding a new one");
+      return;
+    }
+    onChange([...(shapes || []), { shape: '', pieces: 0, weight: 0 }]);
   };
 
   const handleRemoveShape = (index: number) => {
@@ -130,13 +135,19 @@ onChange([...shapes, { shape: '', pieces: 0, weight: 0 }]);
             <SelectValue placeholder="Select shape..." />
           </SelectTrigger>
           <SelectContent>
-            {availableShapes
-              .filter(Boolean)
-              .map((shape) => (
-              <SelectItem key={shape._id} value={shape.name}>
-                {shape.name}
-              </SelectItem>
-            ))}
+            {availableShapes && availableShapes.length > 0 ? (
+              availableShapes
+                .filter((shape) => shape && shape._id && shape.name)
+                .map((shape) => (
+                  <SelectItem key={shape._id} value={shape.name}>
+                    {shape.name}
+                  </SelectItem>
+                ))
+            ) : (
+              <div className="px-2 py-1 text-sm text-muted-foreground">
+                No shapes available
+              </div>
+            )}
             <SelectItem value="create_new" className="text-primary">
               + Create New Shape
             </SelectItem>
@@ -190,13 +201,19 @@ onChange([...shapes, { shape: '', pieces: 0, weight: 0 }]);
               <SelectValue placeholder="Shape" />
             </SelectTrigger>
             <SelectContent>
-              {availableShapes
-                .filter(Boolean)
-                .map((shape) => (
-                <SelectItem key={shape._id} value={shape.name}>
-                  {shape.name}
-                </SelectItem>
-              ))}
+              {availableShapes && availableShapes.length > 0 ? (
+                availableShapes
+                  .filter((shape) => shape && shape._id && shape.name)
+                  .map((shape) => (
+                    <SelectItem key={shape._id} value={shape.name}>
+                      {shape.name}
+                    </SelectItem>
+                  ))
+              ) : (
+                <div className="px-2 py-1 text-sm text-muted-foreground">
+                  No shapes available
+                </div>
+              )}
               <SelectItem value="create_new">+ Create New</SelectItem>
             </SelectContent>
           </Select>

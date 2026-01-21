@@ -239,7 +239,7 @@ const getCategories = async (params?: {
       success: true,
       data: Array.isArray(res.data?.data)
         ? res.data.data.map((c: any) => ({
-            id: c.id,
+            _id: c._id,
             name: c.name,
           }))
         : [],
@@ -298,9 +298,13 @@ const deleteCategory = async (id: string) => {
 const getShapes = async () => {
   try {
     const response = await apiClient.get("/api/shapes");
+    // Backend returns: { success: true, data: [{ _id, name }, ...] }
+    const shapesData = response.data?.data || response.data || [];
+    const shapesList = Array.isArray(shapesData) ? shapesData : [];
+    
     return {
       success: true,
-      data: Array.isArray(response.data) ? response.data.map((s: any) => typeof s === 'object' && s.name ? s.name : s) : response.data?.data?.map((s: any) => typeof s === 'object' && s.name ? s.name : s) || []
+      data: shapesList.filter((s: any) => s && s._id && s.name) // Filter out invalid entries
     };
   } catch (error) {
     console.error("Error fetching shapes:", error);
@@ -330,7 +334,9 @@ const getInventoryShapes = async () => {
     if (response.success && Array.isArray(response.data)) {
       return {
         success: true,
-        data: response.data.map((shape: any) => shape.name || shape),
+        data: response.data
+          .filter((shape: any) => shape && shape.name)
+          .map((shape: any) => shape.name || ''),
       };
     }
     return {

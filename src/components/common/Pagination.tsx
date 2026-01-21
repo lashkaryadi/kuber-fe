@@ -1,11 +1,11 @@
 type Props = {
   page: number;
-  pages: number;
+  totalPages: number;
   onChange: (page: number) => void;
 };
 
-export function Pagination({ page, pages, onChange }: Props) {
-  if (pages <= 1) return null;
+export function Pagination({ page, totalPages, onChange }: Props) {
+  if (totalPages <= 1) return null;
 
   return (
     <div className="flex items-center justify-center gap-2 mt-4">
@@ -17,11 +17,11 @@ export function Pagination({ page, pages, onChange }: Props) {
         Prev
       </button>
 
-      {Array.from({ length: pages }).map((_, i) => {
+      {Array.from({ length: totalPages }).map((_, i) => {
         const p = i + 1;
         return (
           <button
-            key={p}
+            key={`page-${p}`} // ✅ FIX: React key warnings - use unique key
             onClick={() => onChange(p)}
             className={`px-3 py-1 border rounded ${
               p === page ? "bg-black text-white" : ""
@@ -33,7 +33,7 @@ export function Pagination({ page, pages, onChange }: Props) {
       })}
 
       <button
-        disabled={page === pages}
+        disabled={page === totalPages}
         onClick={() => onChange(page + 1)}
         className="px-3 py-1 border rounded disabled:opacity-50"
       >

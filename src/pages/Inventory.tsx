@@ -14,6 +14,7 @@ import { AddInventoryDialog } from "@/components/inventory/AddInventoryDialog";
 import { InventoryItem } from "@/types/inventory"; // Removed ShapeName (not exported); define locally if needed
 import { toast } from "sonner";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { Pagination } from "@/components/common/Pagination";
 import api from "@/services/api";
 
 // Define ShapeName locally if not exported from types
@@ -65,11 +66,14 @@ export const Inventory = () => {
   const fetchAvailableShapes = async () => {
     try {
       const response = await api.getInventoryShapes();
-      if (response.success) {
+      if (response.success && Array.isArray(response.data)) {
         setAvailableShapes(response.data);
+      } else {
+        setAvailableShapes([]);
       }
     } catch (error) {
       console.error("Error fetching shapes:", error);
+      setAvailableShapes([]);
     }
   };
 
@@ -174,7 +178,7 @@ export const Inventory = () => {
           >
             <option key="ALL" value="ALL">All Categories</option>
             {categories.map((cat) => {
-              const id = (cat._id || cat.id)?.toString();
+              const id = (cat._id || cat._id)?.toString();
 
               if (!id) return null; // 🛡 safety
 
@@ -208,9 +212,9 @@ export const Inventory = () => {
             aria-label="Filter by shape" // Fix: Add accessible name
           >
             <option key="ALL_SHAPES" value="ALL">All Shapes</option>
-            {availableShapes.map((shape) => (
-              <option key={shape._id} value={shape.name}>
-                {shape.name}
+            {Array.isArray(availableShapes) && availableShapes.map((s) => (
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
           </select>
@@ -225,7 +229,7 @@ export const Inventory = () => {
 
         {/* Error - This would need to be handled differently in the actual implementation */}
         {!loading && inventory.length === 0 && (
-          <div className="py-10 text-center text-muted-foreground">
+          <div className="text-center text-muted-foreground mt-10">
             No inventory items match your filters
           </div>
         )}
@@ -241,25 +245,11 @@ export const Inventory = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              Previous
-            </Button>
-            <span className="flex items-center px-4">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              Next
-            </Button>
-          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onChange={(p) => setPage(p)}
+          />
         )}
 
         {/* Add Inventory Dialog */}
