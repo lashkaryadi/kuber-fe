@@ -1,42 +1,10 @@
 export type ShapeType = 'single' | 'mix';
 
-export type ShapeName = 
-  | 'Round' 
-  | 'Oval' 
-  | 'Emerald' 
-  | 'Princess' 
-  | 'Marquise' 
-  | 'Pear' 
-  | 'Cushion' 
-  | 'Asscher' 
-  | 'Radiant' 
-  | 'Heart'
-  | 'Baguette'
-  | 'Trillion'
-  | 'Briolette'
-  | 'Rose Cut';
-
-export const AVAILABLE_SHAPES: ShapeName[] = [
-  'Round',
-  'Oval',
-  'Emerald',
-  'Princess',
-  'Marquise',
-  'Pear',
-  'Cushion',
-  'Asscher',
-  'Radiant',
-  'Heart',
-  'Baguette',
-  'Trillion',
-  'Briolette',
-  'Rose Cut'
-];
+export type ShapeName = string;
 
 export interface Shape {
-  shapeName: ShapeName;
-  pieces: number;
-  weight: number;
+  _id: string;
+  name: string;
 }
 
 export interface InventoryItem {
@@ -55,6 +23,7 @@ export interface InventoryItem {
   availableWeight: number;
   purchaseCode?: string;
   saleCode?: string;
+  totalPrice?: number; // ✅ ADD THIS
   dimensions?: {
     length: number;
     width: number;

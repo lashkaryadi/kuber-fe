@@ -54,20 +54,18 @@ const [meta, setMeta] = useState<PaginationMeta | null>(null);
 const fetchData = useCallback(async () => {
   setLoading(true);
   try {
-    const [soldRes, inventoryRes] = await Promise.all([
-      api.getSoldItems({
+    const [salesRes, inventoryRes] = await Promise.all([
+      api.getSales({
         page,
         limit, // ✅ Pass limit
-        search: searchText || undefined,
-        sortBy: sortKey || undefined,
         sortOrder: sortDir || undefined,
       }),
-      api.getSellableInventory(),
+      api.getInventoryForSale(),
     ]);
 
-    if (soldRes.success) {
-      setSoldItems(Array.isArray(soldRes.data) ? soldRes.data : []);
-      setMeta(soldRes.meta || null);
+    if (salesRes.success) {
+      setSoldItems(Array.isArray(salesRes.data) ? salesRes.data : []);
+      setMeta(salesRes.meta || null);
     } else {
       setSoldItems([]);
       setMeta(null);
@@ -119,7 +117,7 @@ useEffect(() => {
 setModalOpen(true);
 
 try {
-  const response = await api.getSellableInventory();
+  const response = await api.getInventoryForSale();
 
   if (response.success) {
     setApprovedItems(response.data);
@@ -127,7 +125,7 @@ try {
     setApprovedItems([]);
     toast({
       title: "Error",
-      description: response.message || "Failed to fetch sellable inventory",
+      description: response.message || "Failed to fetch inventory for sale",
       variant: "destructive",
     });
   }
@@ -136,7 +134,7 @@ try {
   const message =
     err instanceof Error
       ? err.message
-      : "Failed to fetch sellable inventory";
+      : "Failed to fetch inventory for sale";
 
   toast({
     title: "Error",
@@ -147,33 +145,37 @@ try {
 };
 
   const handleUndo = async (soldId: string) => {
-if (!soldId) {
-toast({
-title: "Error",
-description: "Invalid sold item",
-variant: "destructive",
-});
-return;
-}
+    if (!soldId) {
+      toast({
+        title: "Error",
+        description: "Invalid sold item",
+        variant: "destructive",
+      });
+      return;
+    }
 
-const res = await api.undoSold(soldId);
+    if (!confirm("⚠️ Are you sure?\nThis will restore inventory quantities.")) {
+      return;
+    }
 
-if (!res.success) {
-  toast({
-    title: "Error",
-    description: res.message,
-    variant: "destructive",
-  });
-  return;
-}
+    const res = await api.undoSale(soldId);
 
-toast({
-  title: "Success",
-  description: "Sale undone, item moved back to inventory",
-});
+    if (!res.success) {
+      toast({
+        title: "Error",
+        description: res.message,
+        variant: "destructive",
+      });
+      return;
+    }
 
-fetchData();
-};
+    toast({
+      title: "Success",
+      description: "Sale undone, item moved back to inventory",
+    });
+
+    fetchData();
+  };
 
 // ✅ NEW: Sell All Quick Fill
 const handleSellAll = () => {
@@ -242,14 +244,17 @@ if (!formData.inventoryId) {
 
 setSaving(true);
 
-const response = await api.markAsSold({
+const response = await api.sellInventoryItem({
   inventoryId: formData.inventoryId,
-  soldPieces: Number(formData.soldPieces),
-  soldWeight: Number(formData.soldWeight),
-  price: Number(formData.price),
-  currency: formData.currency,
-  soldDate: formData.soldDate,
-  buyer: formData.buyer || undefined,
+  soldShapes: [{
+    shapeName: "General", // Using a general shape name for now
+    pieces: Number(formData.soldPieces),
+    weight: Number(formData.soldWeight),
+    pricePerCarat: Number(formData.price) / Number(formData.soldWeight) || 0,
+    lineTotal: Number(formData.price)
+  }],
+  customer: { name: formData.buyer || "Walk-in Customer" },
+  invoiceNumber: `INV-${Date.now()}`
 });
 
 if (!response.success) {
@@ -586,11 +591,13 @@ render: (item) => (
       <Button
         variant="ghost"
         size="icon"
+        disabled={item.cancelled} // Disable if sale is cancelled
         onClick={() => handleUndo(item.id)}
-        title="Undo Sale"
-        className="h-10 w-10 text-destructive hover:text-destructive"
+        title={item.cancelled ? "Cancelled" : "Undo Sale"}
+        className={item.cancelled ? "text-muted-foreground" : "h-10 w-10 text-destructive hover:text-destructive"}
       >
         <Trash2 className="h-4 w-4" />
+        {item.cancelled && "Cancelled"} {/* Show cancelled state */}
       </Button>
 
       <Button
@@ -653,10 +660,6 @@ render: (item) => (
                 className="pl-3"
               />
             </div>
-            <Button onClick={openMarkSoldModal} className="gap-2">
-              <ShoppingCart className="h-4 w-4" />
-              Mark as Sold
-            </Button>
           </div>
         </div>
 
@@ -697,176 +700,8 @@ render: (item) => (
     </div>
       </div>
 
-      {/* Mark as Sold Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Mark Item as Sold"
-        size="md"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-        <Label htmlFor="inventoryId">Select Item *</Label>
-        <Select
-          value={formData.inventoryId}
-          onValueChange={(value) => {
-            const inv = approvedItems.find((i) => i.id === value);
-            setSelectedInventory(inv || null);
-            setFormData({ ...formData, inventoryId: value });
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select an approved item" />
-          </SelectTrigger>
 
-          <SelectContent>
-            {approvedItems.length === 0 && (
-              <div className="px-3 py-2 text-sm text-muted-foreground">No approved items available</div>
-            )}
-
-            {approvedItems.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.serialNumber} — {item.category?.name} (Pieces: {item.availablePieces || item.pieces}, Weight:{" "}
-                {item.availableWeight || item.weight} {item.weightUnit})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {selectedInventory && (
-        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-          <div className="text-sm text-muted-foreground">
-            Available:
-            <span className="ml-2 font-medium text-foreground">
-              {selectedInventory.availablePieces || selectedInventory.pieces} pcs |{" "}
-              {selectedInventory.availableWeight || selectedInventory.weight} {selectedInventory.weightUnit}
-            </span>
-          </div>
-
-          {/* ✅ NEW: Sell All Button */}
-          <Button type="button" variant="outline" size="sm" onClick={handleSellAll} className="gap-2">
-            <Zap className="h-3 w-3" />
-            Sell All
-          </Button>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="soldPieces">Sold Pieces *</Label>
-          <Input
-            id="soldPieces"
-            type="number"
-            value={formData.soldPieces}
-            onChange={(e) => setFormData({ ...formData, soldPieces: e.target.value })}
-            placeholder="Pieces to sell"
-            required
-            className="flex-1"
-          />
-          {selectedInventory &&
-            Number(formData.soldPieces) > (selectedInventory?.availablePieces || selectedInventory?.pieces || 0) && (
-              <p className="text-sm text-red-500">
-                Sold pieces exceed available stock ({selectedInventory.availablePieces || selectedInventory.pieces} pcs)
-              </p>
-            )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="soldWeight">Sold Weight *</Label>
-          <Input
-            id="soldWeight"
-            type="number"
-            step="0.01"
-            value={formData.soldWeight}
-            onChange={(e) => setFormData({ ...formData, soldWeight: e.target.value })}
-            placeholder="Weight to sell"
-            required
-            className="flex-1"
-          />
-          {selectedInventory &&
-            Number(formData.soldWeight) > (selectedInventory?.availableWeight || selectedInventory?.weight || 0) && (
-              <p className="text-sm text-red-500">
-                Sold weight exceeds available stock ({selectedInventory.availableWeight || selectedInventory.weight}{" "}
-                {selectedInventory.weightUnit})
-              </p>
-            )}
-        </div>
-      </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="price">Sale Price *</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={formData.currency}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, currency: value })
-                  }
-                >
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
-                    <SelectItem value="INR">INR</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
-                  }
-                  placeholder="0.00"
-                  required
-                  className="flex-1"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="soldDate">Sold Date *</Label>
-              <Input
-                id="soldDate"
-                type="date"
-                value={formData.soldDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, soldDate: e.target.value })
-                }
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="buyer">Buyer Name</Label>
-            <Input
-              id="buyer"
-              value={formData.buyer}
-              onChange={(e) =>
-                setFormData({ ...formData, buyer: e.target.value })
-              }
-              placeholder="Optional buyer information"
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Mark as Sold"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </MainLayout>
   );
 }
+

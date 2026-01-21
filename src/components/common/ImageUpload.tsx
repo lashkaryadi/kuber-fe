@@ -1,127 +1,93 @@
-import { useState } from "react";
-import { X, Upload, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { uploadInventoryImage, deleteInventoryImage } from "@/services/api";
-import { toast } from "@/hooks/use-toast";
+import React, { useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Upload, X, Loader2 } from 'lucide-react';
 
 interface ImageUploadProps {
   images: string[];
-  onImagesChange: (images: string[]) => void;
+  onUpload: (file: File) => void;
+  onRemove: (index: number) => void;
+  uploading: boolean;
 }
 
-export function ImageUpload({ images, onImagesChange }: ImageUploadProps) {
-  const [uploading, setUploading] = useState(false);
+export const ImageUpload: React.FC<ImageUploadProps> = ({
+  images,
+  onUpload,
+  onRemove,
+  uploading
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-
-    try {
-      const uploadedUrls: string[] = [];
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const url = await uploadInventoryImage(file);
-        uploadedUrls.push(url);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
       }
 
-      onImagesChange([...images, ...uploadedUrls]);
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image size must be less than 5MB');
+        return;
+      }
 
-      toast({
-        title: "Success",
-        description: `${uploadedUrls.length} image(s) uploaded successfully`,
-      });
-    } catch (error) {
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload images",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-      e.target.value = ""; // Reset input
+      onUpload(file);
     }
-  };
 
-  const handleDelete = async (url: string) => {
-    try {
-      await deleteInventoryImage(url);
-
-      onImagesChange(images.filter((img) => img !== url));
-
-      toast({
-        title: "Success",
-        description: "Image deleted successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Delete failed",
-        description: "Failed to delete image",
-        variant: "destructive",
-      });
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Upload Button */}
-      <div>
-        <label htmlFor="image-upload" className="cursor-pointer">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-primary transition-colors text-center">
-            {uploading ? (
-              <div className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span className="text-sm text-muted-foreground">Uploading...</span>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Click to upload images
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  PNG, JPG, GIF up to 5MB
-                </p>
-              </div>
-            )}
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-3">
+        {images.map((image, index) => (
+          <div key={index} className="relative group">
+            <img
+              src={image}
+              alt={`Upload ${index + 1}`}
+              className="w-24 h-24 object-cover rounded-md border"
+            />
+            <button
+              type="button"
+              onClick={() => onRemove(index)}
+              className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="w-3 h-3" />
+            </button>
           </div>
-          <input
-            id="image-upload"
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleUpload}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
+        ))}
+
+        {/* Upload Button */}
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          className="w-24 h-24 border-2 border-dashed border-muted-foreground/25 rounded-md flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+        >
+          {uploading ? (
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          ) : (
+            <>
+              <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Upload</span>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Image Preview Grid */}
-      {images.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          {images.map((img, idx) => (
-            <div key={idx} className="relative group">
-              <img
-                src={`http://localhost:5001${img}`}
-                alt={`Upload ${idx + 1}`}
-                className="aspect-square rounded-md object-cover border border-border"
-              />
-              <Button
-                type="button"
-                variant="destructive"
-                size="icon"
-                className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => handleDelete(img)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      <p className="text-xs text-muted-foreground">
+        Supported formats: JPG, PNG, GIF (max 5MB)
+      </p>
     </div>
   );
-}
+};

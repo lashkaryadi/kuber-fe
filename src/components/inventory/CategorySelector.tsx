@@ -4,8 +4,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import api from '@/services/api';
 
 interface Category {
   _id: string;
@@ -31,7 +31,6 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { getToken } = useAuth();
 
   // Filter categories based on search query
   const filteredCategories = useMemo(() => {
@@ -49,26 +48,16 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
 
   const handleCreateCategory = async (name: string) => {
     try {
-      const token = getToken();
-      const response = await fetch('/api/categories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name }),
-      });
+      const response = await api.createCategory({ name });
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         toast.success('Category created successfully');
         // Call the parent's onCreateCategory function to update the state
         if (onCreateCategory) {
           onCreateCategory(name);
         }
       } else {
-        toast.error(data.message || 'Failed to create category');
+        toast.error(response.message || 'Failed to create category');
       }
     } catch (error) {
       console.error('Error creating category:', error);

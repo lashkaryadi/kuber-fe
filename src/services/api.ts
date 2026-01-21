@@ -117,6 +117,12 @@ export interface SoldItem {
   buyer?: string;
   soldDate: string;
   createdAt: string;
+  cancelled?: boolean;
+  cancelledAt?: string;
+  cancelledBy?: {
+    username: string;
+    email: string;
+  };
 }
 
 export interface AuditLog {
@@ -614,6 +620,11 @@ async downloadImportReport(rows: any[]) {
     return true;
   },
 
+  async getInventoryShapes() {
+    const { data } = await apiClient.get("/inventory/shapes");
+    return data;
+  },
+
   async getApprovedInventory() {
     try {
       const { data } = await apiClient.get("/inventory", {
@@ -631,15 +642,18 @@ async downloadImportReport(rows: any[]) {
     }
   },
 
-  async getSellableInventory() {
+  async getInventoryForSale() {
     try {
-      const { data } = await apiClient.get("/inventory/sellable");
+      const { data } = await apiClient.get("/inventory", {
+        params: {
+          status: ["in_stock", "partially_sold"],
+        },
+      });
       return { success: true, data: data.data || [] };
     } catch (err: any) {
       return {
         success: false,
-        message:
-          err?.response?.data?.message || "Failed to fetch sellable inventory",
+        message: err?.response?.data?.message || "Failed to fetch inventory for sale",
       };
     }
   },
@@ -649,14 +663,14 @@ async downloadImportReport(rows: any[]) {
   //   const { data } = await apiClient.get("/sold");
   //   return data;
   // },
-  async getSoldItems(params?: { page?: number; limit?: number; search?: string; sortBy?: string; sortOrder?: string }) {
+  async getSales(params?: { page?: number; limit?: number; sortOrder?: "asc" | "desc" }) {
     try {
-      const { data } = await apiClient.get("/sold", { params });
+      const { data } = await apiClient.get("/sales", { params });
       return { success: true, data: data.data, meta: data.meta };
     } catch (err: any) {
       return {
         success: false,
-        message: err?.response?.data?.message || "Failed to fetch sold items",
+        message: err?.response?.data?.message || "Failed to fetch sales",
         data: [],
         meta: null
       };
@@ -703,6 +717,65 @@ async downloadImportReport(rows: any[]) {
       return {
         success: false,
         message: err?.response?.data?.message || "Update failed",
+      };
+    }
+  },
+
+  async sellInventoryItem(payload: {
+    inventoryId: string;
+    soldShapes: {
+      shapeName: string;
+      pieces: number;
+      weight: number;
+      pricePerCarat: number;
+      lineTotal: number;
+    }[];
+    customer?: { name: string };
+    invoiceNumber?: string;
+  }) {
+    try {
+      const { data } = await apiClient.post(`/sales/sell`, payload);
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Sell failed",
+      };
+    }
+  },
+
+  async undoSale(saleId: string) {
+    try {
+      const { data } = await apiClient.post(`/sales/${saleId}/undo`);
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Undo sale failed",
+      };
+    }
+  },
+
+  async getShapes() {
+    try {
+      const { data } = await apiClient.get("/shapes");
+      return { success: true, data: data.data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Failed to fetch shapes",
+      };
+    }
+  },
+
+  async createShape(payload: { name: string }) {
+    try {
+      const { data } = await apiClient.post("/shapes", payload);
+      return { success: true, data: data.data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.response?.data?.message || "Failed to create shape",
       };
     }
   },
