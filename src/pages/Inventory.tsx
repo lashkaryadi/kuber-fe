@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
   Filter,
@@ -34,6 +34,7 @@ export const Inventory = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch categories
   useEffect(() => {
@@ -122,6 +123,30 @@ export const Inventory = () => {
     }
   };
 
+  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const response = await api.importInventoryCSV(file);
+      if (response.success) {
+        toast.success(response.data?.message || "CSV imported successfully");
+        fetchInventory();
+        fetchAvailableShapes();
+      } else {
+        toast.error(response.message || "Failed to import CSV");
+      }
+    } catch (error) {
+      console.error("Error importing CSV:", error);
+      toast.error("Failed to import CSV");
+    }
+
+    // Reset input
+    if (csvInputRef.current) {
+      csvInputRef.current.value = '';
+    }
+  };
+
   return (
     <MainLayout title="Inventory">
       <div className="space-y-6">
@@ -142,10 +167,18 @@ export const Inventory = () => {
             <Button
               variant="secondary"
               className="bg-secondary hover:bg-secondary/80"
+              onClick={() => csvInputRef.current?.click()}
             >
               <Upload className="w-4 h-4 mr-2" />
-              Import Excel
+              Import CSV
             </Button>
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCSVImport}
+              className="hidden"
+            />
             <Button
               onClick={() => setIsAddDialogOpen(true)}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"

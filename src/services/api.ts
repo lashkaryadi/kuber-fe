@@ -30,6 +30,15 @@ export interface RecycleBinItem {
   updatedAt: string;
 }
 
+export interface Category {
+  id: string;
+  _id: string;
+  name: string;
+  description?: string;
+  createdAt?: string;
+  isDeleted?: boolean;
+}
+
 /* ============================
    AXIOS INSTANCE
 ============================ */
@@ -124,19 +133,20 @@ const register = async (payload: {
   username: string;
   email: string;
   password: string;
+  mobileNumber?: string;
   role?: "admin" | "staff";
 }) => {
   const { data } = await apiClient.post("/api/auth/register", payload);
   return data;
 };
 
-const verifyEmailOtp = async (email: string, otp: string) => {
-  const { data } = await apiClient.post("/api/auth/verify-email", { email, otp });
+const verifyEmailOtp = async (payload: { email: string; otp: string }) => {
+  const { data } = await apiClient.post("/api/auth/verify-email", payload);
   return data;
 };
 
-const resendEmailOtp = async (email: string) => {
-  const { data } = await apiClient.post("/api/auth/resend-otp", { email });
+const resendEmailOtp = async (payload: { email: string }) => {
+  const { data } = await apiClient.post("/api/auth/resend-otp", payload);
   return data;
 };
 
@@ -239,8 +249,12 @@ const getCategories = async (params?: {
       success: true,
       data: Array.isArray(res.data?.data)
         ? res.data.data.map((c: any) => ({
+            id: c._id,
             _id: c._id,
             name: c.name,
+            description: c.description || '',
+            createdAt: c.createdAt,
+            isDeleted: c.isDeleted || false,
           }))
         : [],
       meta: res.data?.meta || null,
@@ -289,6 +303,25 @@ const deleteCategory = async (id: string) => {
   } catch (error) {
     console.error("Error deleting category:", error);
     return { success: false, message: (error as Error).message };
+  }
+};
+
+const exportCategoriesExcel = async () => {
+  try {
+    const response = await apiClient.get("/api/categories/export", {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "categories.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    return { success: true };
+  } catch (error) {
+    console.error("Error exporting categories:", error);
+    return { success: false };
   }
 };
 
@@ -647,6 +680,25 @@ const exportInventoryExcel = async () => {
   return { success: true };
 };
 
+const importInventoryCSV = async (file: File) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await apiClient.post("/api/inventory/import/csv", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return { success: true, data: response.data };
+  } catch (error: unknown) {
+    console.error("Error importing CSV:", error);
+    const err = error as any;
+    return {
+      success: false,
+      message: err?.response?.data?.message || err.message,
+      data: null,
+    };
+  }
+};
+
 /* ============================
    AUDIT LOGS
 ============================ */
@@ -680,12 +732,14 @@ const api = {
   getInventoryById,
   deleteInventoryItem,
   exportInventoryExcel,
+  importInventoryCSV,
 
   // Categories & Shapes
   getCategories,
   createCategory,
   updateCategory,
   deleteCategory,
+  exportCategoriesExcel,
   getShapes,
   createShape,
   getInventoryShapes,

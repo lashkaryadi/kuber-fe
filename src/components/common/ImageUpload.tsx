@@ -2,6 +2,15 @@ import React, { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Loader2 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+
+const getImageUrl = (image: string) => {
+  if (image.startsWith('http://') || image.startsWith('https://') || image.startsWith('data:')) {
+    return image;
+  }
+  return `${API_BASE}${image}`;
+};
+
 interface ImageUploadProps {
   images: string[];
   onUpload: (file: File) => void;
@@ -47,7 +56,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         {images.map((image, index) => (
           <div key={image} className="relative group">
             <img
-              src={image}
+              src={getImageUrl(image)}
               alt={`Upload ${index + 1}`}
               className="w-24 h-24 object-cover rounded-md border"
             />

@@ -1,4 +1,3 @@
-import { stringify } from "querystring";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Gem, Eye, EyeOff, Loader2 } from "lucide-react";
@@ -7,21 +6,14 @@ import api from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 
 export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<"admin" | "staff">("admin");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -66,7 +58,8 @@ export default function SignupPage() {
         username,
         email,
         password,
-        role,
+        mobileNumber,
+        role: "admin",
       });
 
       if (res?.error) {
@@ -144,19 +137,15 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-gray-700">Role</Label>
-              <Select
-                value={role}
-                onValueChange={(value) => setRole(value as "admin" | "staff")}
-              >
-                <SelectTrigger className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200">
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="staff">Staff</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label className="text-sm font-medium text-gray-700">Mobile Number</Label>
+              <Input
+                type="tel"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                disabled={loading}
+                placeholder="Enter your mobile number"
+                className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
+              />
             </div>
 
             {/* Password */}

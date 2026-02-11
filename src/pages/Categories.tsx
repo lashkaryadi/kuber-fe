@@ -321,7 +321,7 @@ const closeModal = () => {
               </select>
             </div>
 
-            <Pagination page={meta?.page} pages={meta?.pages} onChange={setPage} />
+            <Pagination page={meta?.page} totalPages={meta?.pages} onChange={setPage} />
           </div>
         </div>
       </div>
