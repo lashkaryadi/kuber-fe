@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { InventoryItem, SoldShape } from '@/types/inventory';
+import { InventoryItem } from '@/types/inventory';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { Loader2 } from 'lucide-react';

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Pagination } from "@/components/common/Pagination";
 import api from "@/services/api";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
 import { Label } from "recharts";
 
@@ -88,78 +88,36 @@ export default function RecycleBin() {
   };
 
   const handleRestore = async () => {
-    if (selectedIds.length === 0) {
-      toast({
-        title: "No items selected",
-        description: "Please select items to restore",
-        variant: "destructive",
-      });
-      return;
-    }
+  const res = await api.restoreRecycleBinItems(selectedIds);
 
-    try {
-      const response = await api.restoreRecycleBinItems(selectedIds);
+  if (!res.success) {
+    toast.error(res.message || "Restore failed");
+    return;
+  }
 
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: response.message || "Items restored successfully",
-        });
-        setSelectedIds([]);
-        fetchRecycleBin();
-      } else {
-        toast({
-          title: "Error",
-          description: response.message || "Failed to restore items",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to restore items",
-        variant: "destructive",
-      });
-    }
+  toast.success("Items restored successfully");
 
-    setConfirmModalOpen(false);
-    setConfirmAction(null);
-  };
+  setSelectedIds([]);
+
+  // 🔥 CRITICAL
+  fetchRecycleBin();     // removes restored rows
+};
+
 
   const handlePermanentDelete = async () => {
-    if (selectedIds.length === 0) {
-      toast({
-        title: "No items selected",
-        description: "Please select items to delete",
-        variant: "destructive",
-      });
+    if (selectedIds.length === 0) return;
+
+    const res = await api.deleteRecycleBinItems(selectedIds); // Assuming this returns { success: boolean, message?: string }
+
+    if (!res.success) {
+      toast.error(res.message || "Delete failed");
       return;
     }
 
-    try {
-      const response = await api.permanentlyDeleteRecycleBinItems(selectedIds);
+    toast.success("Items permanently deleted");
 
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: response.message || "Items permanently deleted",
-        });
-        setSelectedIds([]);
-        fetchRecycleBin();
-      } else {
-        toast({
-          title: "Error",
-          description: response.message || "Failed to delete items",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete items",
-        variant: "destructive",
-      });
-    }
+    setSelectedIds([]);
+    fetchRecycleBin(); // 🔥 REQUIRED
 
     setConfirmModalOpen(false);
     setConfirmAction(null);
@@ -170,26 +128,16 @@ export default function RecycleBin() {
       const response = await api.emptyRecycleBin();
 
       if (response.success) {
-        toast({
-          title: "Success",
-          description: response.message || "Recycle bin emptied",
-        });
+        toast.success(response.message || "Recycle bin emptied");
         setSelectedIds([]);
         fetchRecycleBin();
       } else {
-        toast({
-          title: "Error",
-          description: response.message || "Failed to empty recycle bin",
-          variant: "destructive",
-        });
+        toast.error(response.message || "Failed to empty recycle bin");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to empty recycle bin",
-        variant: "destructive",
-      });
+      toast.error("Failed to empty recycle bin");
     }
+
 
     setConfirmModalOpen(false);
     setConfirmAction(null);
@@ -459,7 +407,7 @@ export default function RecycleBin() {
 
             <Pagination
               page={meta?.page}
-              pages={meta?.pages}
+              totalPages={meta?.pages}
               onChange={setPage}
             />
           </div>

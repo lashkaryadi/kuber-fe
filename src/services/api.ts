@@ -553,7 +553,7 @@ const restoreRecycleBinItems = async (ids: string[]) => {
   }
 };
 
-const permanentlyDeleteRecycleBinItems = async (ids: string[]) => {
+const deleteRecycleBinItems = async (ids: string[]) => {
   try {
     const response = await apiClient.delete("/api/recycle-bin/delete", { data: { ids } });
     return { success: true, data: response.data };
@@ -718,7 +718,7 @@ const api = {
   getRecycleBinItems,
   restoreFromRecycleBin,
   restoreRecycleBinItems,
-  permanentlyDeleteRecycleBinItems,
+  deleteRecycleBinItems,
 
   // Analytics
   getAnalytics,
