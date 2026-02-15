@@ -69,18 +69,24 @@ export default function Packaging() {
 
   return (
     <MainLayout title="Packaging">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <p className="text-muted-foreground">
-            Manage lots sent to clients
-          </p>
-          <Button onClick={() => navigate("/packaging/new")}>
-            <Plus className="h-4 w-4 mr-2" />
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/50 p-4 rounded-xl border border-border/50">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Packaging</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage lots sent to clients
+            </p>
+          </div>
+          <Button
+            onClick={() => navigate("/packaging/new")}
+            className="gap-2 bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:bg-primary/90 transition-all"
+          >
+            <Plus className="h-4 w-4" />
             Create Packaging
           </Button>
         </div>
 
-        <div className="royal-card">
+        <div className="royal-card overflow-hidden">
           <DataTable
             columns={columns}
             data={packaging}

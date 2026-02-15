@@ -95,112 +95,116 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
-            <Gem className="h-8 w-8 text-secondary" />
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/5 mb-4 border border-primary/10">
+            <Gem className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="font-serif text-3xl font-bold text-gray-800">Kuber</h1>
-          <p className="text-gray-600 text-sm">
-            Gemstone Inventory System
+          <h1 className="font-serif text-3xl font-bold text-foreground tracking-tight">Kuber</h1>
+          <p className="text-muted-foreground text-sm">
+            Setup your merchant account
           </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-gray-100 transition-all duration-300 hover:shadow-2xl">
-          <h2 className="font-serif text-2xl font-semibold text-gray-800 text-center">Create Account</h2>
+        <div className="royal-card p-8 border-t-4 border-t-primary">
+          <h2 className="font-serif text-2xl font-semibold text-foreground text-center mb-6">Create Account</h2>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Username</Label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Username</Label>
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                placeholder="Enter your username"
-                className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
+                placeholder="e.g. John Doe"
+                className="h-11 bg-muted/50 border-input focus:ring-primary/20"
               />
             </div>
 
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Email Address</Label>
+            <div className="space-y-2">
+              <Label>Email Address</Label>
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
-                placeholder="Enter your email address"
-                className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
+                placeholder="name@company.com"
+                className="h-11 bg-muted/50 border-input focus:ring-primary/20"
               />
             </div>
 
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Mobile Number</Label>
+            <div className="space-y-2">
+              <Label>Mobile Number</Label>
               <Input
                 type="tel"
                 value={mobileNumber}
                 onChange={(e) => setMobileNumber(e.target.value)}
                 disabled={loading}
-                placeholder="Enter your mobile number"
-                className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all duration-200"
+                placeholder="+91..."
+                className="h-11 bg-muted/50 border-input focus:ring-primary/20"
               />
             </div>
 
             {/* Password */}
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Password</Label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                  placeholder="Enter your password"
-                  className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 pr-10 rounded-xl transition-all duration-200"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Password</Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                    placeholder="******"
+                    className="h-11 bg-muted/50 border-input focus:ring-primary/20 pr-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Confirm</Label>
+                <div className="relative">
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                    placeholder="******"
+                    className="h-11 bg-muted/50 border-input focus:ring-primary/20 pr-8"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={14} />
+                    ) : (
+                      <Eye size={14} />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Confirm */}
-            <div>
-              <Label className="text-sm font-medium text-gray-700">Confirm Password</Label>
-              <div className="relative">
-                <Input
-                  type={showConfirmPassword ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={loading}
-                  placeholder="Confirm your password"
-                  className="h-12 bg-gray-50 border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 pr-10 rounded-xl transition-all duration-200"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff size={16} />
-                  ) : (
-                    <Eye size={16} />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <Button className="w-full h-12 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-white font-medium rounded-xl shadow-md transition-all duration-300 transform hover:-translate-y-0.5" disabled={loading}>
+            <Button
+              className="w-full h-12 bg-primary text-primary-foreground hover:bg-primary/90 mt-2 shadow-lg shadow-primary/20"
+              disabled={loading}
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
+                  Creating...
                 </>
               ) : (
                 "Create Account"
@@ -208,11 +212,11 @@ export default function SignupPage() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{" "}
             <button
               onClick={() => navigate("/login")}
-              className="text-primary font-medium hover:text-primary/80 transition-colors hover:underline"
+              className="text-primary font-medium hover:underline hover:text-primary/80"
             >
               Sign in
             </button>

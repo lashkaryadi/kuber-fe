@@ -138,99 +138,147 @@ export default function PackagingDetails() {
 
   return (
     <MainLayout title="Packaging Details">
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in duration-500">
         {/* HEADER */}
-        <Card className="p-4 space-y-2">
-          <h2 className="text-lg font-semibold">
-            Client: {packaging.clientName}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Created: {new Date(packaging.createdAt).toLocaleDateString()}
-          </p>
-        </Card>
+        <div className="bg-card/50 p-6 rounded-xl border border-border/50 shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-serif font-bold text-primary">
+                {packaging.clientName}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Created on {new Date(packaging.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}
+              </p>
+            </div>
+            <div className="px-4 py-1.5 bg-primary/10 rounded-full text-primary text-sm font-medium border border-primary/20">
+              {packaging.items.length} Items
+            </div>
+          </div>
+        </div>
 
-        {/* ITEMS */}
-        <Card className="p-4 space-y-4">
-          <h3 className="font-medium">Items in Lot</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* ITEMS LIST */}
+          <div className="lg:col-span-2 space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <span className="w-1 h-6 bg-primary rounded-full"></span>
+              Items in Lot
+            </h3>
+            <div className="royal-card p-0 overflow-hidden">
+              <div className="divide-y divide-border">
+                {packaging.items.map((item) => {
+                  const inv = item.inventory;
+                  const checked = keptItemIds.includes(inv.id);
 
-          {packaging.items.map((item) => {
-            const inv = item.inventory;
-            const checked = keptItemIds.includes(inv.id);
+                  return (
+                    <div
+                      key={inv.id}
+                      className={`flex items-start gap-4 p-4 transition-colors ${checked ? "bg-primary/5" : "hover:bg-muted/30"
+                        }`}
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => toggleItem(inv.id)}
+                        className="mt-1"
+                      />
 
-            return (
-              <div
-                key={inv.id}
-                className="flex items-center justify-between border p-3 rounded-md"
-              >
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={() => toggleItem(inv.id)}
-                  />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className="font-semibold text-foreground truncate">{inv.serialNumber}</p>
+                          <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-muted-foreground">
+                            {inv.pieces} pcs
+                          </span>
+                        </div>
 
-                  <div>
-                    <p className="font-medium">{inv.serialNumber}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {typeof inv.category === "object" ? inv.category.name : "Deleted"} • {inv.weight} {inv.weightUnit} •{" "}
-                      {inv.pieces} pcs
-                    </p>
-                    {(inv.purchaseCode || inv.saleCode) && (
-                      <p className="text-xs text-muted-foreground">
-                        {inv.purchaseCode && `PC: ${inv.purchaseCode}`}{" "}
-                        {inv.saleCode && `| SC: ${inv.saleCode}`}
-                      </p>
-                    )}
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {typeof inv.category === "object" ? inv.category.name : "Deleted"}
+                          <span className="mx-2 text-border">|</span>
+                          {inv.weight} {inv.weightUnit}
+                        </p>
+
+                        {(inv.purchaseCode || inv.saleCode) && (
+                          <div className="flex gap-2 mt-2">
+                            {inv.purchaseCode && (
+                              <span className="text-[10px] uppercase tracking-wider bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100">
+                                PC: {inv.purchaseCode}
+                              </span>
+                            )}
+                            {inv.saleCode && (
+                              <span className="text-[10px] uppercase tracking-wider bg-green-50 text-green-700 px-1.5 py-0.5 rounded border border-green-100">
+                                SC: {inv.saleCode}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* SIDEBAR / BILLING */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="royal-card sticky top-6">
+              <h3 className="font-serif text-xl font-semibold mb-4 text-center border-b pb-3">Invoice Generation</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="pricePerUnit" className="text-sm font-medium text-muted-foreground mb-1.5 block">
+                    Price per Carat / Unit
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+                    <input
+                      id="pricePerUnit"
+                      type="number"
+                      className="w-full pl-7 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      value={pricePerUnit}
+                      onChange={(e) => setPricePerUnit(Number(e.target.value))}
+                      min={0}
+                      placeholder="0.00"
+                    />
                   </div>
                 </div>
+
+                <div className="bg-muted/30 rounded-lg p-4 space-y-3 border border-border/50">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Selected Items</span>
+                    <span className="font-medium text-foreground">{keptItems.length}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Weight</span>
+                    <span className="font-medium text-foreground">{totalWeight.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Pieces</span>
+                    <span className="font-medium text-foreground">{totalPieces}</span>
+                  </div>
+                  <Separator className="bg-border/50" />
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="font-semibold text-foreground">Total Amount</span>
+                    <span className="font-serif text-lg font-bold text-primary">₹ {totalAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleGenerateInvoice}
+                  disabled={generating || keptItems.length === 0}
+                  className="w-full h-12 text-base shadow-md hover:shadow-lg transition-all"
+                >
+                  {generating ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                      Generating Invoice...
+                    </>
+                  ) : (
+                    "Generate & View Invoice"
+                  )}
+                </Button>
               </div>
-            );
-          })}
-        </Card>
-
-        {/* BILLING */}
-        <Card className="p-4 space-y-4">
-          <h3 className="font-medium">Billing</h3>
-
-          <div className="flex gap-4 items-center">
-            <label htmlFor="pricePerUnit" className="text-sm">
-              Price / Weight
-            </label>
-
-            <input
-              id="pricePerUnit"
-              type="number"
-              className="border rounded px-3 py-1 w-32"
-              value={pricePerUnit}
-              onChange={(e) => setPricePerUnit(Number(e.target.value))}
-              min={0}
-            />
-          </div>
-
-          <Separator />
-
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Total Weight</p>
-              <p className="font-medium">{totalWeight}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Total Pieces</p>
-              <p className="font-medium">{totalPieces}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Total Amount</p>
-              <p className="font-medium">₹ {totalAmount.toFixed(2)}</p>
             </div>
           </div>
-
-          <Separator />
-
-          <div className="flex justify-end">
-            <Button onClick={handleGenerateInvoice} disabled={generating}>
-              {generating ? "Generating..." : "Generate Invoice"}
-            </Button>
-          </div>
-        </Card>
+        </div>
       </div>
     </MainLayout>
   );

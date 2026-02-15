@@ -36,7 +36,7 @@ export default function Users() {
     username: "",
     email: "",
     password: "",
-    role: "staff" ,
+    role: "staff",
   });
 
   const [saving, setSaving] = useState(false);
@@ -110,15 +110,15 @@ export default function Users() {
 
     const payload = selectedUser
       ? {
-          username: formData.username,
-          email: formData.email,
-          ...(formData.password && { password: formData.password }),
-        }
+        username: formData.username,
+        email: formData.email,
+        ...(formData.password && { password: formData.password }),
+      }
       : {
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-        };
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
+      };
 
     const response = selectedUser
       ? await api.updateUser(selectedUser.id, payload)
@@ -236,26 +236,33 @@ export default function Users() {
   /* ---------------- UI ---------------- */
   return (
     <MainLayout title="Users">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center gap-4">
-          <p className="text-muted-foreground">
-            Manage user accounts and permissions
-          </p>
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/50 p-4 rounded-xl border border-border/50">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">User Management</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage system access and roles
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => api.exportUsersExcel()}
+              className="hover:bg-primary/5 hover:text-primary transition-colors"
             >
               Export Excel
             </Button>
-            <Button onClick={openAddModal} className="gap-2">
+            <Button
+              onClick={openAddModal}
+              className="gap-2 bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:bg-primary/90 transition-all"
+            >
               <Plus className="h-4 w-4" />
               Add User
             </Button>
           </div>
         </div>
 
-        <div className="royal-card">
+        <div className="royal-card overflow-hidden">
           <DataTable
             columns={columns}
             data={users}

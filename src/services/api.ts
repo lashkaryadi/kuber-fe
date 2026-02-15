@@ -607,9 +607,9 @@ const exportSoldItemsExcel = async () => {
 /* ============================
    USERS
 ============================ */
-const getUsers = async () => {
+const getUsers = async (params?: any) => {
   try {
-    const response = await apiClient.get("/api/users");
+    const response = await apiClient.get("/api/users", { params });
     return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [] };
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -621,9 +621,12 @@ const createUser = async (payload: any) => {
   try {
     const response = await apiClient.post("/api/users", payload);
     return { success: true, data: response.data };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating user:", error);
-    return { success: false, error: (error as Error).message };
+    return { 
+      success: false, 
+      message: error?.response?.data?.message || error.message || "Failed to create user"
+    };
   }
 };
 
@@ -631,19 +634,25 @@ const updateUser = async (id: string, payload: any) => {
   try {
     const response = await apiClient.put(`/api/users/${id}`, payload);
     return { success: true, data: response.data };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating user:", error);
-    return { success: false, error: (error as Error).message };
+    return { 
+      success: false, 
+      message: error?.response?.data?.message || error.message || "Failed to update user"
+    };
   }
 };
 
 const deleteUser = async (id: string) => {
   try {
     await apiClient.delete(`/api/users/${id}`);
-    return { success: true };
-  } catch (error) {
+    return { success: true, message: "User deleted successfully" };
+  } catch (error: any) {
     console.error("Error deleting user:", error);
-    return { success: false };
+    return { 
+      success: false, 
+      message: error?.response?.data?.message || error.message || "Failed to delete user"
+    };
   }
 };
 
@@ -959,10 +968,92 @@ const importInventoryCSV = async (file: File) => {
 const getAuditLogs = async (params?: any) => {
   try {
     const response = await apiClient.get("/api/audit-logs", { params });
-    return { success: true, data: Array.isArray(response.data) ? response.data : response.data?.data || [] };
+    return { 
+      success: true, 
+      data: Array.isArray(response.data) ? response.data : response.data?.data || [],
+      meta: response.data?.meta || null
+    };
   } catch (error) {
     console.error("Error fetching audit logs:", error);
-    return { success: false, data: [] };
+    return { success: false, data: [], meta: null };
+  }
+};
+
+const clearAuditLogs = async () => {
+  try {
+    const response = await apiClient.delete("/api/audit-logs");
+    return { success: true, message: response.data?.message || "Audit logs cleared" };
+  } catch (error: any) {
+    console.error("Error clearing audit logs:", error);
+    return { 
+      success: false, 
+      message: error?.response?.data?.message || error.message || "Failed to clear audit logs" 
+    };
+  }
+};
+
+const exportAuditLogsExcel = async () => {
+  try {
+    const response = await apiClient.get("/api/audit-logs/export/excel", {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "audit-logs.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    return { success: true };
+  } catch (error) {
+    console.error("Error exporting audit logs:", error);
+    return { success: false };
+  }
+};
+
+/* ============================
+   PACKAGING
+============================ */
+const getPackaging = async () => {
+  try {
+    const response = await apiClient.get("/api/packaging");
+    return Array.isArray(response.data) ? response.data : response.data?.data || [];
+  } catch (error) {
+    console.error("Error fetching packaging:", error);
+    return [];
+  }
+};
+
+const getPackagingById = async (id: string) => {
+  try {
+    const response = await apiClient.get(`/api/packaging/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching packaging details:", error);
+    return null;
+  }
+};
+
+const createPackaging = async (data: any) => {
+  try {
+    const response = await apiClient.post("/api/packaging", data);
+    return { success: true, data: response.data };
+  } catch (error: any) {
+    console.error("Error creating packaging:", error);
+    return { 
+      success: false, 
+      message: error?.response?.data?.message || error.message || "Failed to create packaging" 
+    };
+  }
+};
+
+const generateInvoice = async (data: any) => {
+  try {
+    const response = await apiClient.post("/api/invoices/generate", data);
+    return response.data;
+  } catch (error) {
+    console.error("Error generating invoice:", error);
+    throw error;
   }
 };
 
@@ -1042,9 +1133,17 @@ const api = {
   getInvoiceById,
   createBulkInvoice,
   downloadInvoicePDF,
+  generateInvoice,
+
+  // Packaging
+  getPackaging,
+  getPackagingById,
+  createPackaging,
 
   // Audit Logs
   getAuditLogs,
+  clearAuditLogs,
+  exportAuditLogsExcel,
 };
 
 // Named exports for backward compatibility

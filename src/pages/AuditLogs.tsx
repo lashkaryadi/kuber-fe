@@ -122,17 +122,21 @@ export default function AuditLogs() {
 
   return (
     <MainLayout title="Audit Logs">
-      <div className="space-y-6">
+      <div className="space-y-6 animate-in fade-in duration-500">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <p className="text-muted-foreground">
-            Track all critical system actions
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card/50 p-4 rounded-xl border border-border/50">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">System Activity</h2>
+            <p className="text-sm text-muted-foreground">
+              Monitor user actions and system events
+            </p>
+          </div>
 
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={() => api.exportAuditLogsExcel()}
+              className="hover:bg-primary/5 hover:text-primary transition-colors"
             >
               Export Excel
             </Button>
@@ -140,7 +144,7 @@ export default function AuditLogs() {
             <Button
               variant="destructive"
               onClick={handleClearLogs}
-              className="gap-2"
+              className="gap-2 shadow-sm hover:shadow-md transition-all"
             >
               <Trash2 className="h-4 w-4" />
               Clear Logs
@@ -149,7 +153,7 @@ export default function AuditLogs() {
         </div>
 
         {/* Table */}
-        <div className="royal-card">
+        <div className="royal-card overflow-hidden">
           <DataTable
             columns={columns}
             data={logs}
@@ -176,7 +180,7 @@ export default function AuditLogs() {
               </select>
             </div>
 
-            <Pagination page={meta?.page} pages={meta?.pages} onChange={setPage} />
+            <Pagination page={meta?.page || 1} totalPages={meta?.pages || 1} onChange={setPage} />
           </div>
         </div>
       </div>
