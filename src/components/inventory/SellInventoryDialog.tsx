@@ -85,40 +85,36 @@ export const SellInventoryDialog: React.FC<SellInventoryDialogProps> = ({
   };
 
   const handlePiecesChange = (index: number, value: string) => {
-    const pieces = parseInt(value) || 0;
+    // START MANUAL ENTRY UPDATE: Allow manual entry
+    const pieces = value === '' ? 0 : parseInt(value);
+
     setSellShapes(prev => prev.map((shape, i) => {
       if (i === index) {
-        // Calculate proportional weight
-        if (shape.availablePieces > 0) {
-          const ratio = pieces / shape.availablePieces;
-          const newWeight = Math.round(shape.availableWeight * ratio * 100) / 100;
-          return {
-            ...shape,
-            sellPieces: Math.min(pieces, shape.availablePieces),
-            sellWeight: Math.min(newWeight, shape.availableWeight)
-          };
-        }
-        return { ...shape, sellPieces: Math.min(pieces, shape.availablePieces) };
+        // Validation only - don't auto-calculate weight
+        const validPieces = isNaN(pieces) ? 0 : pieces;
+
+        return {
+          ...shape,
+          sellPieces: validPieces // Allow user to exceed available for now, validate on submit/blur or just show error
+        };
       }
       return shape;
     }));
   };
 
   const handleWeightChange = (index: number, value: string) => {
-    const weight = parseFloat(value) || 0;
+    // START MANUAL ENTRY UPDATE: Allow manual entry
+    const weight = value === '' ? 0 : parseFloat(value);
+
     setSellShapes(prev => prev.map((shape, i) => {
       if (i === index) {
-        // Calculate proportional pieces
-        if (shape.availableWeight > 0) {
-          const ratio = weight / shape.availableWeight;
-          const newPieces = Math.round(shape.availablePieces * ratio);
-          return {
-            ...shape,
-            sellWeight: Math.min(weight, shape.availableWeight),
-            sellPieces: Math.min(newPieces, shape.availablePieces)
-          };
-        }
-        return { ...shape, sellWeight: Math.min(weight, shape.availableWeight) };
+        // Validation only - don't auto-calculate pieces
+        const validWeight = isNaN(weight) ? 0 : weight;
+
+        return {
+          ...shape,
+          sellWeight: validWeight
+        };
       }
       return shape;
     }));
@@ -250,9 +246,8 @@ export const SellInventoryDialog: React.FC<SellInventoryDialogProps> = ({
             {sellShapes.map((shape, index) => (
               <div
                 key={index}
-                className={`p-4 rounded-lg border ${
-                  shape.selected ? 'border-primary bg-primary/5' : 'border-border'
-                }`}
+                className={`p-4 rounded-lg border ${shape.selected ? 'border-primary bg-primary/5' : 'border-border'
+                  }`}
               >
                 <div className="flex items-start gap-4">
                   <Checkbox
@@ -393,7 +388,7 @@ export const SellInventoryDialog: React.FC<SellInventoryDialogProps> = ({
                 id="invoiceNumber"
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="Enter invoice number"
+                placeholder="Leave blank to auto-generate"
               />
             </div>
           </div>

@@ -15,7 +15,6 @@ import { Pagination } from "@/components/common/Pagination";
 import api from "@/services/api";
 import { toast } from "sonner";
 import { Modal } from "@/components/common/Modal";
-import { Label } from "recharts";
 
 interface RecycleBinItem {
   id: string;
@@ -406,8 +405,8 @@ export default function RecycleBin() {
             </div>
 
             <Pagination
-              page={meta?.page}
-              totalPages={meta?.pages}
+              page={meta?.page || 1}
+              totalPages={meta?.pages || 1}
               onChange={setPage}
             />
           </div>

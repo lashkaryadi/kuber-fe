@@ -1,23 +1,33 @@
 import { useEffect, useState } from "react";
-import { getCompany, saveCompany, uploadCompanyImage } from "@/services/api";
+import api from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, Upload, X, Building2, FileText, CreditCard } from "lucide-react";
 
 export default function SettingsCompany() {
   const [form, setForm] = useState({
     companyName: "",
     gstNumber: "",
+    panNumber: "",
     taxRate: 0,
     phone: "",
     email: "",
     address: "",
+    city: "",
+    state: "",
+    pincode: "",
+    bankName: "",
+    bankAccountNumber: "",
+    bankIfscCode: "",
+    bankBranch: "",
     logoUrl: "",
     signatureUrl: "",
+    termsAndConditions: "",
   });
 
   const [logo, setLogo] = useState<File | null>(null);
@@ -33,17 +43,26 @@ export default function SettingsCompany() {
 
   const loadCompany = async () => {
     try {
-      const data = await getCompany();
+      const data = await api.getCompany();
       if (data) {
         setForm({
           companyName: data.companyName || "",
           gstNumber: data.gstNumber || "",
+          panNumber: data.panNumber || "",
           taxRate: data.taxRate || 0,
           phone: data.phone || "",
           email: data.email || "",
           address: data.address || "",
+          city: data.city || "",
+          state: data.state || "",
+          pincode: data.pincode || "",
+          bankName: data.bankName || "",
+          bankAccountNumber: data.bankAccountNumber || "",
+          bankIfscCode: data.bankIfscCode || "",
+          bankBranch: data.bankBranch || "",
           logoUrl: data.logoUrl || "",
           signatureUrl: data.signatureUrl || "",
+          termsAndConditions: data.termsAndConditions || "",
         });
 
         if (data.logoUrl) {
@@ -101,22 +120,40 @@ export default function SettingsCompany() {
   };
 
   const save = async () => {
+    if (!form.companyName.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Company name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSaving(true);
 
       const payload: any = {
         companyName: form.companyName,
         gstNumber: form.gstNumber,
+        panNumber: form.panNumber,
         taxRate: form.taxRate,
         phone: form.phone,
         email: form.email,
         address: form.address,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+        bankName: form.bankName,
+        bankAccountNumber: form.bankAccountNumber,
+        bankIfscCode: form.bankIfscCode,
+        bankBranch: form.bankBranch,
+        termsAndConditions: form.termsAndConditions,
       };
 
       // Upload logo if new file selected
       if (logo) {
         try {
-          const url = await uploadCompanyImage(logo);
+          const url = await api.uploadCompanyImage(logo, "logo");
           payload.logoUrl = url;
         } catch (error) {
           toast({
@@ -134,7 +171,7 @@ export default function SettingsCompany() {
       // Upload signature if new file selected
       if (signature) {
         try {
-          const url = await uploadCompanyImage(signature);
+          const url = await api.uploadCompanyImage(signature, "signature");
           payload.signatureUrl = url;
         } catch (error) {
           toast({
@@ -149,14 +186,13 @@ export default function SettingsCompany() {
         payload.signatureUrl = form.signatureUrl;
       }
 
-      const success = await saveCompany(payload);
+      const success = await api.saveCompany(payload);
       if (success) {
         toast({
           title: "Success",
           description: "Company profile saved successfully!",
         });
-        
-        // Reload to get updated URLs
+
         await loadCompany();
         setLogo(null);
         setSignature(null);
@@ -194,13 +230,18 @@ export default function SettingsCompany() {
         <div>
           <h1 className="text-2xl font-semibold">Company Settings</h1>
           <p className="text-muted-foreground">
-            Manage your company profile used on invoices
+            Manage your company profile used on invoices and official documents
           </p>
         </div>
 
+        {/* Company Information */}
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Company Profile</CardTitle>
+            <div className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              <CardTitle>Company Information</CardTitle>
+            </div>
+            <CardDescription>Basic details about your company</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -213,29 +254,6 @@ export default function SettingsCompany() {
                     setForm({ ...form, companyName: e.target.value })
                   }
                   placeholder="Kuber Gems Pvt Ltd"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>GST Number</Label>
-                <Input
-                  value={form.gstNumber}
-                  onChange={(e) =>
-                    setForm({ ...form, gstNumber: e.target.value })
-                  }
-                  placeholder="08ABCDE1234F1Z9"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tax Rate (%)</Label>
-                <Input
-                  type="number"
-                  value={form.taxRate}
-                  onChange={(e) =>
-                    setForm({ ...form, taxRate: Number(e.target.value) })
-                  }
-                  placeholder="18"
                 />
               </div>
 
@@ -261,18 +279,176 @@ export default function SettingsCompany() {
                 />
               </div>
 
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label>Address</Label>
                 <Input
                   value={form.address}
                   onChange={(e) =>
                     setForm({ ...form, address: e.target.value })
                   }
-                  placeholder="Jaipur, Rajasthan, India"
+                  placeholder="123 Gem Street, Johri Bazaar"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Input
+                  value={form.city}
+                  onChange={(e) =>
+                    setForm({ ...form, city: e.target.value })
+                  }
+                  placeholder="Jaipur"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>State</Label>
+                <Input
+                  value={form.state}
+                  onChange={(e) =>
+                    setForm({ ...form, state: e.target.value })
+                  }
+                  placeholder="Rajasthan"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Pincode</Label>
+                <Input
+                  value={form.pincode}
+                  onChange={(e) =>
+                    setForm({ ...form, pincode: e.target.value })
+                  }
+                  placeholder="302001"
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
+        {/* Tax & Registration */}
+        <Card className="shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <CardTitle>Tax & Registration</CardTitle>
+            </div>
+            <CardDescription>GST, PAN, and tax configuration for invoices</CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <Label>GST Number (GSTIN)</Label>
+                <Input
+                  value={form.gstNumber}
+                  onChange={(e) =>
+                    setForm({ ...form, gstNumber: e.target.value.toUpperCase() })
+                  }
+                  placeholder="08ABCDE1234F1Z9"
+                  maxLength={15}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>PAN Number</Label>
+                <Input
+                  value={form.panNumber}
+                  onChange={(e) =>
+                    setForm({ ...form, panNumber: e.target.value.toUpperCase() })
+                  }
+                  placeholder="ABCDE1234F"
+                  maxLength={10}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>GST Tax Rate (%)</Label>
+                <Input
+                  type="number"
+                  value={form.taxRate}
+                  onChange={(e) =>
+                    setForm({ ...form, taxRate: Number(e.target.value) })
+                  }
+                  placeholder="18"
+                  min={0}
+                  max={100}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Split as CGST ({(form.taxRate / 2).toFixed(1)}%) + SGST ({(form.taxRate / 2).toFixed(1)}%)
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bank Details */}
+        <Card className="shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              <CardTitle>Bank Details</CardTitle>
+            </div>
+            <CardDescription>Bank account details displayed on invoices</CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Bank Name</Label>
+                <Input
+                  value={form.bankName}
+                  onChange={(e) =>
+                    setForm({ ...form, bankName: e.target.value })
+                  }
+                  placeholder="State Bank of India"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Account Number</Label>
+                <Input
+                  value={form.bankAccountNumber}
+                  onChange={(e) =>
+                    setForm({ ...form, bankAccountNumber: e.target.value })
+                  }
+                  placeholder="1234567890123456"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>IFSC Code</Label>
+                <Input
+                  value={form.bankIfscCode}
+                  onChange={(e) =>
+                    setForm({ ...form, bankIfscCode: e.target.value.toUpperCase() })
+                  }
+                  placeholder="SBIN0001234"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Branch</Label>
+                <Input
+                  value={form.bankBranch}
+                  onChange={(e) =>
+                    setForm({ ...form, bankBranch: e.target.value })
+                  }
+                  placeholder="Johri Bazaar Branch"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Logos & Signatures */}
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Logo & Signature</CardTitle>
+            <CardDescription>Upload your company logo and authorized signature for invoices</CardDescription>
+          </CardHeader>
+
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Logo Upload */}
               <div className="space-y-3">
@@ -352,21 +528,40 @@ export default function SettingsCompany() {
                 )}
               </div>
             </div>
-
-            <div className="flex justify-end pt-4 border-t">
-              <Button onClick={save} disabled={saving || !form.companyName}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Company"
-                )}
-              </Button>
-            </div>
           </CardContent>
         </Card>
+
+        {/* Terms & Conditions */}
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Invoice Terms & Conditions</CardTitle>
+            <CardDescription>Default terms printed on every invoice</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              value={form.termsAndConditions}
+              onChange={(e) =>
+                setForm({ ...form, termsAndConditions: e.target.value })
+              }
+              placeholder="1. Goods once sold will not be taken back.&#10;2. Subject to Jaipur jurisdiction.&#10;3. E. & O.E."
+              rows={4}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Save Button */}
+        <div className="flex justify-end pt-4 border-t">
+          <Button onClick={save} disabled={saving || !form.companyName} size="lg">
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Company Profile"
+            )}
+          </Button>
+        </div>
       </div>
     </MainLayout>
   );

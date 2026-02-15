@@ -39,6 +39,83 @@ export interface Category {
   isDeleted?: boolean;
 }
 
+export interface InventoryItem {
+  _id: string;
+  id?: string;
+  serialNumber: string;
+  category: Category | string;
+  shapeType: "single" | "mix";
+  singleShape?: string;
+  shapes: Array<{ shape: string; pieces: number; weight: number }>;
+  totalPieces: number;
+  totalWeight: number;
+  availablePieces: number;
+  availableWeight: number;
+  purchaseCode?: string;
+  saleCode?: string;
+  totalPrice?: number;
+  dimensions?: { length: number; width: number; height: number; unit: string };
+  certification?: string;
+  location?: string;
+  status: "in_stock" | "pending" | "partially_sold" | "sold";
+  description?: string;
+  images?: string[];
+  weightUnit?: string;
+  pieces?: number;
+  weight?: number;
+  ownerId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SoldItem {
+  _id: string;
+  id: string;
+  inventoryId: any;
+  inventoryItem: any;
+  soldShapes: Array<{
+    shape: string;
+    pieces: number;
+    weight: number;
+    pricePerCarat: number;
+    lineTotal: number;
+  }>;
+  totalPieces: number;
+  totalWeight: number;
+  totalAmount: number;
+  customer: { name?: string; email?: string; phone?: string };
+  invoiceNumber?: string;
+  saleRef?: string;
+  soldAt: string;
+  soldDate: string;
+  cancelled: boolean;
+  cancelledAt?: string;
+  cancelledBy?: any;
+  cancelReason?: string;
+  ownerId: string;
+  createdAt: string;
+  // Legacy compatibility
+  price: number;
+  currency: string;
+  buyer: string;
+  soldPieces?: number;
+  soldWeight?: number;
+}
+
+export interface DashboardStats {
+  totalInventory: number;
+  in_stockItems: number;
+  soldItems: number;
+  pendingApproval: number;
+  partiallySoldItems?: number;
+  totalValue: number;
+  inStockValue: number | string;
+  totalWeight?: number;
+  totalPieces?: number;
+  totalSalesAmount?: number;
+  recentSales: SoldItem[];
+}
+
 /* ============================
    AXIOS INSTANCE
 ============================ */
@@ -428,10 +505,102 @@ const getSoldItems = async (params?: any) => {
 const undoSale = async (saleId: string) => {
   try {
     const response = await apiClient.post(`/api/sales/${saleId}/undo`);
-    return { success: true, data: response.data };
-  } catch (error) {
+    return { success: true, data: response.data, message: response.data?.message };
+  } catch (error: unknown) {
     console.error("Error undoing sale:", error);
-    return { success: false, error: (error as Error).message };
+    const err = error as any;
+    return { success: false, message: err?.response?.data?.message || err.message };
+  }
+};
+
+// Alias for getSoldItems - used by SoldItems page
+const getSales = async (params?: any) => {
+  try {
+    const response = await apiClient.get("/api/sales", { params });
+    return {
+      success: true,
+      data: Array.isArray(response.data) ? response.data : response.data?.data || [],
+      meta: response.data?.meta || null,
+    };
+  } catch (error) {
+    console.error("Error fetching sales:", error);
+    return { success: false, data: [], meta: null };
+  }
+};
+
+// Get inventory items available for sale (in_stock or partially_sold)
+const getInventoryForSale = async () => {
+  try {
+    const response = await apiClient.get("/api/inventory", {
+      params: { status: "in_stock,partially_sold", limit: 500 },
+    });
+    const items = Array.isArray(response.data) ? response.data : response.data?.data || [];
+    return { success: true, data: items };
+  } catch (error) {
+    console.error("Error fetching inventory for sale:", error);
+    return { success: false, data: [], message: "Failed to fetch inventory" };
+  }
+};
+
+// Sell inventory item (shape-based selling)
+const sellInventoryItem = async (data: {
+  inventoryId: string;
+  soldShapes: Array<{
+    shape?: string;
+    shapeName?: string;
+    pieces: number;
+    weight: number;
+    pricePerCarat: number;
+    lineTotal: number;
+  }>;
+  customer?: { name?: string; email?: string; phone?: string };
+  invoiceNumber?: string;
+}) => {
+  try {
+    // Normalize shape field names
+    const normalizedShapes = data.soldShapes.map((s) => ({
+      shape: s.shape || s.shapeName || "General",
+      pieces: s.pieces,
+      weight: s.weight,
+      pricePerCarat: s.pricePerCarat,
+      lineTotal: s.lineTotal,
+    }));
+
+    const response = await apiClient.post("/api/sales/sell", {
+      inventoryId: data.inventoryId,
+      soldShapes: normalizedShapes,
+      customer: data.customer || {},
+      invoiceNumber: data.invoiceNumber || "",
+    });
+    return { success: true, data: response.data?.data || response.data, message: response.data?.message };
+  } catch (error: unknown) {
+    console.error("Error selling inventory:", error);
+    const err = error as any;
+    return {
+      success: false,
+      data: null,
+      message: err?.response?.data?.message || err.message,
+    };
+  }
+};
+
+// Export sales as Excel
+const exportSoldItemsExcel = async () => {
+  try {
+    const response = await apiClient.get("/api/sales/export/excel", {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "sales.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    return { success: true };
+  } catch (error) {
+    console.error("Error exporting sales:", error);
+    return { success: false };
   }
 };
 
@@ -505,7 +674,7 @@ const getDashboardStats = async () => {
     const response = await apiClient.get("/api/dashboard");
     return {
       success: true,
-      data: response.data || {
+      data: response.data?.data || response.data || {
         totalInventory: 0,
         inStockItems: 0,
         soldItems: 0,
@@ -661,6 +830,91 @@ const getAnalytics = async (params?: any) => {
   }
 };
 
+const getProfitAnalytics = async () => {
+  try {
+    const response = await apiClient.get("/api/analytics");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching profit analytics:", error);
+    return { totals: { revenue: 0, cost: 0, profit: 0 }, monthly: [], categories: [] };
+  }
+};
+
+const exportProfitExcel = async () => {
+  try {
+    const response = await apiClient.get("/api/analytics/export/excel", {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "profit-report.xlsx");
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    return { success: true };
+  } catch (error) {
+    console.error("Error exporting profit report:", error);
+    return { success: false };
+  }
+};
+
+/* ============================
+   INVOICES
+============================ */
+const getInvoiceBySold = async (soldId: string) => {
+  try {
+    const response = await apiClient.get(`/api/invoices/sold/${soldId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching invoice:", error);
+    return null;
+  }
+};
+
+const getInvoiceById = async (id: string) => {
+  try {
+    const response = await apiClient.get(`/api/invoices/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching invoice:", error);
+    return null;
+  }
+};
+
+const createBulkInvoice = async (saleIds: string[]) => {
+  try {
+    const response = await apiClient.post("/api/invoices/bulk-create", { saleIds });
+    return response.data;
+  } catch (error: unknown) {
+    console.error("Error creating bulk invoice:", error);
+    const err = error as any;
+    return {
+      success: false,
+      message: err?.response?.data?.message || err.message || "Failed to create invoice",
+    };
+  }
+};
+
+const downloadInvoicePDF = async (invoiceId: string) => {
+  try {
+    const response = await apiClient.get(`/api/invoices/${invoiceId}/pdf`, {
+      responseType: "blob",
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `invoice-${invoiceId}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    return { success: true };
+  } catch (error) {
+    console.error("Error downloading invoice PDF:", error);
+    return { success: false };
+  }
+};
+
 /* ============================
    EXPORT INVENTORY
 ============================ */
@@ -751,6 +1005,10 @@ const api = {
   sellInventory,
   getSoldItems,
   undoSale,
+  getSales,
+  getInventoryForSale,
+  sellInventoryItem,
+  exportSoldItemsExcel,
 
   // Users
   getUsers,
@@ -776,9 +1034,20 @@ const api = {
 
   // Analytics
   getAnalytics,
+  getProfitAnalytics,
+  exportProfitExcel,
+
+  // Invoices
+  getInvoiceBySold,
+  getInvoiceById,
+  createBulkInvoice,
+  downloadInvoicePDF,
 
   // Audit Logs
   getAuditLogs,
 };
+
+// Named exports for backward compatibility
+export { getCompany, saveCompany, uploadCompanyImage };
 
 export default api;
