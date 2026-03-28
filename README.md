@@ -1,73 +1,145 @@
-# Welcome to your Lovable project
+# Kuber - Gemstone Inventory Management System
 
-## Project info
+A professional gemstone inventory management system for tracking, certifying, and managing precious gemstone collections. Built for gemstone dealers and businesses to streamline their inventory, sales, invoicing, and analytics workflows.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Features
 
-## How can I edit this code?
+### Core
+- **Inventory Management** — Add, edit, and delete gemstone items with serial numbers, categories, shapes (single or mix), weight, dimensions, certification, location, and images
+- **Category & Shape Management** — Organize inventory with custom categories and gemstone shapes
+- **Sales & Partial Selling** — Sell full or partial inventory by shape, with per-carat pricing and automatic stock adjustments
+- **Invoice Generation** — Create, preview, and download PDF invoices; bulk invoice support
+- **Dashboard** — Real-time stats (total inventory, in-stock value, sold items, pending) with auto-refresh
 
-There are several ways of editing your application.
+### Business Intelligence
+- **Analytics** — Revenue trends, monthly breakdowns, category-wise analysis, and customer insights via interactive charts
+- **Audit Logs** — Complete activity trail for all system actions
+- **Profit Reports** — Track revenue, cost, and profit with exportable reports
 
-**Use Lovable**
+### Administration
+- **User Management** — Admin and staff roles with role-based access control
+- **Company Settings** — Configure company name, logo, and signature for invoices
+- **Recycle Bin** — Soft-delete with restore capability for inventory and categories
+- **Undo Sales** — Reverse completed sales to restore inventory
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+### Data Portability
+- **Excel Export** — Export inventory, sales, users, audit logs, categories, and profit reports to `.xlsx`
+- **CSV Import** — Bulk import inventory from CSV files
+- **Multi-Currency** — Supports INR, USD, EUR, and GBP
 
-Changes made via Lovable will be committed automatically to this repo.
+### UX
+- **Responsive Design** — Mobile-friendly with collapsible sidebar navigation
+- **Global Search** — Search across inventory
+- **Customizable Pagination** — 10, 25, 50, or 100 items per page
+- **Image Uploads** — Attach gemstone images to inventory items
 
-**Use your preferred IDE**
+## Tech Stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+| Layer | Technology |
+|-------|-----------|
+| Framework | React 18 + TypeScript |
+| Build Tool | Vite |
+| Styling | Tailwind CSS |
+| UI Components | shadcn/ui (Radix UI primitives) |
+| Routing | React Router v6 |
+| Data Fetching | TanStack React Query + Axios |
+| Charts | Recharts |
+| Forms | React Hook Form + Zod |
+| PDF Generation | jsPDF |
+| Excel/CSV | xlsx |
+| Deployment | Vercel |
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Prerequisites
 
-Follow these steps:
+- Node.js 18+
+- npm or bun
+- Kuber backend API running (default: `http://localhost:5001`)
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Getting Started
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+```bash
+# Clone the repository
+git clone <https://github.com/lashkaryadi/kuber.git>
+cd fc
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Configure environment
+cp .env.local.example .env.local
+# Edit .env.local and set VITE_API_URL to your backend URL
+
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:5173`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Environment Variables
 
-**Use GitHub Codespaces**
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_URL` | Backend API base URL | `http://localhost:5001` |
+| `VITE_APP_NAME` | Application display name | `Kuber` |
+| `VITE_APP_ENV` | Environment (local/production) | `local` |
+| `VITE_TOKEN_KEY` | LocalStorage key for auth token | `accessToken` |
+| `VITE_ENABLE_EXPORT` | Enable Excel export features | `true` |
+| `VITE_ENABLE_IMAGES` | Enable image upload features | `true` |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Scripts
 
-## What technologies are used for this project?
+```bash
+npm run dev        # Start dev server with hot reload
+npm run build      # Production build
+npm run build:dev  # Development build
+npm run preview    # Preview production build
+npm run lint       # Run ESLint
+```
 
-This project is built with:
+## Project Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```
+src/
+├── components/
+│   ├── auth/           # ProtectedRoute, Signup
+│   ├── common/         # DataTable, Pagination, Modal, StatCard, StatusBadge
+│   ├── inventory/      # AddInventoryDialog, SellInventoryDialog, InventoryTable, CategorySelector, ShapeSelector
+│   ├── layout/         # MainLayout, Header, Sidebar
+│   └── ui/             # shadcn/ui components
+├── contexts/           # AuthContext, SearchContext
+├── hooks/              # useInventory, useMobile, useToast
+├── pages/              # Dashboard, Inventory, Categories, SoldItems, Analytics, AuditLogs, Users, RecycleBin, Settings, Packaging, InvoicePreview, Login, Signup
+├── services/           # API client (api.ts), PDF generation (pdfService.ts)
+├── types/              # TypeScript interfaces (inventory, api)
+└── utils/              # Currency formatting, API helpers
+```
 
-## How can I deploy this project?
+## API Integration
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+This is the frontend client for the Kuber backend. The API provides endpoints for:
 
-## Can I connect a custom domain to my Lovable project?
+- `/api/auth/*` — Authentication (login, register, verify email, refresh token)
+- `/api/inventory/*` — Inventory CRUD, export, import
+- `/api/categories/*` — Category management
+- `/api/shapes/*` — Shape management
+- `/api/sales/*` — Sales and sold items
+- `/api/invoices/*` — Invoice generation and PDF download
+- `/api/dashboard` — Dashboard statistics
+- `/api/analytics` — Sales analytics and profit reports
+- `/api/audit-logs` — Activity audit trail
+- `/api/users/*` — User management
+- `/api/recycle-bin/*` — Soft-deleted item recovery
+- `/api/company` — Company settings
+- `/api/packaging/*` — Packaging management
+- `/api/upload` — Image uploads
 
-Yes, you can!
+## Deployment
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+The project is configured for Vercel deployment with SPA routing (`vercel.json`). To deploy:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```bash
+npm run build
+# Deploy the dist/ directory to Vercel
+```
+
+Or connect the repository to Vercel for automatic deployments.
