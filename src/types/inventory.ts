@@ -1,19 +1,52 @@
 export interface Category {
   _id: string;
   name: string;
+  code?: string;
+}
+
+export interface Series {
+  _id: string;
+  name: string;
+}
+
+export interface ShapeDimension {
+  length: number;
+  width: number;
 }
 
 export interface InventoryShape {
   shape: string;
   pieces: number;
   weight: number;
+  dimensionMin?: ShapeDimension;
+  dimensionMax?: ShapeDimension;
 }
+
+export interface DimensionRange {
+  min: ShapeDimension;
+  max: ShapeDimension;
+  unit: 'mm' | 'cm';
+}
+
+// Cutting style codes
+export const CUTTING_STYLES = {
+  A: 'Carving',
+  B: 'Beads / Mani / Melon / Pochi',
+  C: 'Cabs',
+  D: 'Drops',
+  E: 'Cut Stone',
+  F: 'Carving Drops',
+  L: 'Leaf'
+} as const;
+
+export type CuttingStyleCode = keyof typeof CUTTING_STYLES;
 
 export interface InventoryItem {
   _id: string;
   serialNumber: string;
 
   category?: Category | null;
+  series?: Series | null;
 
   shapeType: 'single' | 'mix';
   singleShape?: string | null;
@@ -22,7 +55,6 @@ export interface InventoryItem {
   totalPieces: number;
   totalWeight: number;
 
-  /** 🔥 BACKEND DERIVED FIELDS */
   availablePieces: number;
   availableWeight: number;
 
@@ -31,12 +63,9 @@ export interface InventoryItem {
 
   totalPrice?: number;
 
-  dimensions?: {
-    length?: number;
-    width?: number;
-    height?: number;
-    unit?: 'mm' | 'cm' | 'inch';
-  };
+  cuttingStyle?: CuttingStyleCode | '';
+
+  dimensions?: DimensionRange;
 
   certification?: string;
   location?: string;
@@ -45,6 +74,8 @@ export interface InventoryItem {
 
   description?: string;
   images?: string[];
+
+  displayShapes?: string[];
 
   createdAt?: string;
   updatedAt?: string;

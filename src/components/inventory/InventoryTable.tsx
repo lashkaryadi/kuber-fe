@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, ShoppingCart, Eye, MoreHorizontal } from 'lucide-react';
+import { Edit, Trash2, ShoppingCart, Merge, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { InventoryItem, Category } from '@/types/inventory';
-
+import { InventoryItem, Category, CUTTING_STYLES, CuttingStyleCode } from '@/types/inventory';
 import { AddInventoryDialog } from './AddInventoryDialog';
 import { SellInventoryDialog } from './SellInventoryDialog';
+import { MergePacketDialog } from './MergePacketDialog';
 import { toast } from 'sonner';
 import api from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,19 +15,27 @@ interface InventoryTableProps {
   loading: boolean;
   onRefresh: () => void;
   categories?: Category[];
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  onSort?: (field: string) => void;
 }
 
 export const InventoryTable: React.FC<InventoryTableProps> = ({
   inventory,
   loading,
   onRefresh,
-  categories = []
+  categories = [],
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
+  onSort
 }) => {
   const { user } = useAuth();
   const [editItem, setEditItem] = useState<InventoryItem | undefined>();
   const [saleItem, setSaleItem] = useState<InventoryItem | undefined>();
+  const [mergeItem, setMergeItem] = useState<InventoryItem | undefined>();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSellDialogOpen, setIsSellDialogOpen] = useState(false);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const isAdmin = user?.role === 'admin';
@@ -134,9 +136,15 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
   const formatDimensions = (item: InventoryItem) => {
     if (!item.dimensions) return 'N/A';
-    const { length, width, height, unit } = item.dimensions;
-    if (!length && !width && !height) return 'N/A';
-    return `${length} × ${width} × ${height} ${unit}`;
+    const { min, max, unit } = item.dimensions;
+    const hasMin = (min?.length || 0) > 0 || (min?.width || 0) > 0;
+    const hasMax = (max?.length || 0) > 0 || (max?.width || 0) > 0;
+    if (!hasMin && !hasMax) return 'N/A';
+
+    const parts = [];
+    if (hasMin) parts.push(`${min.length}x${min.width}`);
+    if (hasMax) parts.push(`${max.length}x${max.width}`);
+    return parts.join(' - ') + ` ${unit || 'mm'}`;
   };
 
   const canSell = (item: InventoryItem) => {
@@ -144,32 +152,43 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   };
 
   const getPriceDisplay = (item: InventoryItem) => {
-    // Check if saleCode is numeric
     const saleCode = item.saleCode;
     if (!saleCode) return '-';
-
     const isNumeric = !isNaN(parseFloat(saleCode)) && isFinite(parseFloat(saleCode));
-
-    if (isNumeric) {
-      // Show as price per carat
-      return `$${parseFloat(saleCode).toFixed(2)}/ct`;
-    } else {
-      // Confidential - hide value
-      return 'Confidential';
-    }
+    if (isNumeric) return `$${parseFloat(saleCode).toFixed(2)}/ct`;
+    return 'Confidential';
   };
 
   const getTotalPriceDisplay = (item: InventoryItem) => {
     const saleCode = item.saleCode;
     if (!saleCode) return '-';
-
     const isNumeric = !isNaN(parseFloat(saleCode)) && isFinite(parseFloat(saleCode));
+    if (isNumeric && item.totalPrice) return `$${item.totalPrice.toFixed(2)}`;
+    return 'Confidential';
+  };
 
-    if (isNumeric && item.totalPrice) {
-      return `$${item.totalPrice.toFixed(2)}`;
-    } else {
-      return 'Confidential';
-    }
+  const getCuttingStyleDisplay = (code?: string) => {
+    if (!code) return '-';
+    return `${code} - ${CUTTING_STYLES[code as CuttingStyleCode] || code}`;
+  };
+
+  const SortableHeader: React.FC<{ field: string; children: React.ReactNode }> = ({ field, children }) => {
+    const isActive = sortBy === field;
+    return (
+      <th
+        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm cursor-pointer hover:text-foreground select-none"
+        onClick={() => onSort?.(field)}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          {isActive ? (
+            sortOrder === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+          ) : (
+            <ArrowUpDown className="w-3 h-3 opacity-30" />
+          )}
+        </div>
+      </th>
+    );
   };
 
   if (loading) {
@@ -180,7 +199,6 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     );
   }
 
-  // Safe guard: ensure inventory is an array
   const safeInventory = Array.isArray(inventory) ? inventory : [];
 
   if (safeInventory.length === 0) {
@@ -198,30 +216,27 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-muted/50">
               <tr>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
-                  Serial Number
-                </th>
+                <SortableHeader field="serialNumber">Serial Number</SortableHeader>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
                   Category
+                </th>
+                <SortableHeader field="cuttingStyle">Cut Style</SortableHeader>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
+                  Series
                 </th>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
                   Shapes
                 </th>
+                <SortableHeader field="availablePieces">Pieces</SortableHeader>
+                <SortableHeader field="availableWeight">Weight (ct)</SortableHeader>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
-                  Available / Total Pieces
+                  Dimensions
                 </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
-                  Available / Total Weight (ct)
-                </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
-                  Price/Ct
-                </th>
+                <SortableHeader field="saleCode">Price/Ct</SortableHeader>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
                   Total Value
                 </th>
-                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
-                  Status
-                </th>
+                <SortableHeader field="status">Status</SortableHeader>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground text-sm">
                   Actions
                 </th>
@@ -239,6 +254,12 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                   <td className="p-4 align-middle">
                     {item.category?.name || 'N/A'}
                   </td>
+                  <td className="p-4 align-middle text-sm">
+                    {getCuttingStyleDisplay(item.cuttingStyle)}
+                  </td>
+                  <td className="p-4 align-middle text-sm">
+                    {item.series?.name || '-'}
+                  </td>
                   <td className="p-4 align-middle">
                     {renderShapes(item)}
                   </td>
@@ -255,6 +276,9 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                     </span>
                     {' / '}
                     {item.totalWeight.toFixed(2)}
+                  </td>
+                  <td className="p-4 align-middle text-sm text-muted-foreground">
+                    {formatDimensions(item)}
                   </td>
                   <td className="p-4 align-middle">
                     {getPriceDisplay(item)}
@@ -279,6 +303,22 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                           title="Edit"
                         >
                           <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+
+                      {/* Merge Button (Admin Only) */}
+                      {isAdmin && canSell(item) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setMergeItem(item);
+                            setIsMergeDialogOpen(true);
+                          }}
+                          className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                          title="Merge into another packet"
+                        >
+                          <Merge className="w-4 h-4" />
                         </Button>
                       )}
 
@@ -317,12 +357,6 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             </tbody>
           </table>
         </div>
-
-        {inventory.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No inventory items found</p>
-          </div>
-        )}
       </div>
 
       {/* Edit Dialog */}
@@ -348,6 +382,19 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             if (!open) setSaleItem(undefined);
           }}
           item={saleItem}
+          onSuccess={onRefresh}
+        />
+      )}
+
+      {/* Merge Dialog */}
+      {mergeItem && (
+        <MergePacketDialog
+          open={isMergeDialogOpen}
+          onOpenChange={(open) => {
+            setIsMergeDialogOpen(open);
+            if (!open) setMergeItem(undefined);
+          }}
+          sourceItem={mergeItem}
           onSuccess={onRefresh}
         />
       )}

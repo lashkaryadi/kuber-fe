@@ -8,13 +8,17 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ShapeSelector } from './ShapeSelector';
 import { CategorySelector } from './CategorySelector';
 import { ImageUpload } from '@/components/common/ImageUpload';
-import { InventoryItem, InventoryShape } from '@/types/inventory'; // Removed Category and Shape (not exported); define locally if needed
+import { InventoryItem, InventoryShape, CUTTING_STYLES, CuttingStyleCode } from '@/types/inventory';
 import { toast } from 'sonner';
 import api from '@/services/api';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, X } from 'lucide-react';
 
-// Define Category locally if not exported from types
 interface Category {
+  _id: string;
+  name: string;
+}
+
+interface SeriesItem {
   _id: string;
   name: string;
 }
@@ -27,19 +31,33 @@ interface AddInventoryDialogProps {
   editItem?: InventoryItem;
 }
 
+interface DimRange {
+  length: string;
+  width: string;
+}
+
+interface ShapeFormEntry {
+  shape: string;
+  pieces: number;
+  weight: number;
+  dimensionMin: DimRange;
+  dimensionMax: DimRange;
+}
+
 interface FormData {
   category: string;
+  cuttingStyle: CuttingStyleCode | '';
+  series: string;
   shapeType: 'single' | 'mix';
   singleShape: string;
-  shapes: InventoryShape[];
+  shapes: ShapeFormEntry[];
   totalPieces: string;
   totalWeight: string;
   purchaseCode: string;
   saleCode: string;
   dimensions: {
-    length: string;
-    width: string;
-    height: string;
+    min: DimRange;
+    max: DimRange;
     unit: 'mm' | 'cm';
   };
   certification: string;
@@ -48,6 +66,8 @@ interface FormData {
   description: string;
   images: string[];
 }
+
+const emptyDimRange = (): DimRange => ({ length: '', width: '' });
 
 export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
   open,
@@ -58,6 +78,8 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
 }) => {
   const [formData, setFormData] = useState<FormData>({
     category: '',
+    cuttingStyle: '',
+    series: '',
     shapeType: 'single',
     singleShape: '',
     shapes: [],
@@ -66,9 +88,8 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     purchaseCode: '',
     saleCode: '',
     dimensions: {
-      length: '',
-      width: '',
-      height: '',
+      min: emptyDimRange(),
+      max: emptyDimRange(),
       unit: 'mm'
     },
     certification: '',
@@ -80,31 +101,77 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [seriesList, setSeriesList] = useState<SeriesItem[]>([]);
+  const [newSeriesName, setNewSeriesName] = useState('');
+  const [showNewSeries, setShowNewSeries] = useState(false);
 
-  // Debug logging for category selection
+  // Fetch series list
   useEffect(() => {
-    console.log("Category selected:", formData.category);
-  }, [formData.category]);
+    if (open) {
+      fetchSeries();
+    }
+  }, [open]);
+
+  const fetchSeries = async () => {
+    const response = await api.getSeries({ limit: 100 });
+    if (response.success) {
+      setSeriesList(response.data);
+    }
+  };
+
+  const handleCreateSeries = async () => {
+    if (!newSeriesName.trim()) return;
+    const response = await api.createSeriesItem({ name: newSeriesName.trim() });
+    if (response.success) {
+      toast.success('Series created');
+      setNewSeriesName('');
+      setShowNewSeries(false);
+      await fetchSeries();
+      if (response.data?._id) {
+        setFormData(prev => ({ ...prev, series: response.data._id }));
+      }
+    } else {
+      toast.error(response.message || 'Failed to create series');
+    }
+  };
 
   // Reset or populate form when dialog opens/closes or editItem changes
   useEffect(() => {
     if (open) {
       if (editItem) {
-        // Edit mode - populate form
         setFormData({
           category: editItem.category?._id || '',
+          cuttingStyle: editItem.cuttingStyle || '',
+          series: editItem.series?._id || '',
           shapeType: editItem.shapeType,
           singleShape: editItem.singleShape || '',
-          shapes: editItem.shapes || [],
+          shapes: (editItem.shapes || []).map(s => ({
+            shape: s.shape,
+            pieces: s.pieces,
+            weight: s.weight,
+            dimensionMin: {
+              length: String(s.dimensionMin?.length || ''),
+              width: String(s.dimensionMin?.width || '')
+            },
+            dimensionMax: {
+              length: String(s.dimensionMax?.length || ''),
+              width: String(s.dimensionMax?.width || '')
+            }
+          })),
           totalPieces: String(editItem.totalPieces || ''),
           totalWeight: String(editItem.totalWeight || ''),
           purchaseCode: editItem.purchaseCode || '',
           saleCode: editItem.saleCode || '',
           dimensions: {
-            length: String(editItem.dimensions?.length || ''),
-            width: String(editItem.dimensions?.width || ''),
-            height: String(editItem.dimensions?.height || ''),
-            unit:  'mm'
+            min: {
+              length: String(editItem.dimensions?.min?.length || ''),
+              width: String(editItem.dimensions?.min?.width || '')
+            },
+            max: {
+              length: String(editItem.dimensions?.max?.length || ''),
+              width: String(editItem.dimensions?.max?.width || '')
+            },
+            unit: editItem.dimensions?.unit || 'mm'
           },
           certification: editItem.certification || '',
           location: editItem.location || '',
@@ -113,9 +180,10 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
           images: editItem.images || []
         });
       } else {
-        // Create mode - reset form
         setFormData({
           category: '',
+          cuttingStyle: '',
+          series: '',
           shapeType: 'single',
           singleShape: '',
           shapes: [],
@@ -124,9 +192,8 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
           purchaseCode: '',
           saleCode: '',
           dimensions: {
-            length: '',
-            width: '',
-            height: '',
+            min: emptyDimRange(),
+            max: emptyDimRange(),
             unit: 'mm'
           },
           certification: '',
@@ -145,7 +212,6 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       shapeType: value,
       singleShape: value === 'single' ? prev.singleShape : '',
       shapes: value === 'mix' ? prev.shapes : [],
-      // Reset totals when switching types
       totalPieces: value === 'mix' ? '' : prev.totalPieces,
       totalWeight: value === 'mix' ? '' : prev.totalWeight
     }));
@@ -155,7 +221,6 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     setUploading(true);
     try {
       const response = await api.uploadImage(file);
-      // Fix: Check for data presence instead of 'success' property
       if (response.data?.url) {
         setFormData(prev => ({
           ...prev,
@@ -180,21 +245,35 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
     }));
   };
 
+  // Mix shape dimension handlers
+  const updateShapeDimension = (
+    shapeIndex: number,
+    field: 'dimensionMin' | 'dimensionMax',
+    subField: 'length' | 'width',
+    value: string
+  ) => {
+    setFormData(prev => {
+      const newShapes = [...prev.shapes];
+      newShapes[shapeIndex] = {
+        ...newShapes[shapeIndex],
+        [field]: {
+          ...newShapes[shapeIndex][field],
+          [subField]: value
+        }
+      };
+      return { ...prev, shapes: newShapes };
+    });
+  };
+
   const validateForm = (): boolean => {
-    // Category validation (optional but recommended)
     if (!formData.category) {
       toast.error('Please select a category');
       return false;
     }
 
-    // Shape validation
     if (formData.shapeType === 'single') {
       if (!formData.singleShape) {
         toast.error('Please select a shape');
-        return false;
-      }
-      if (!formData.totalPieces || parseFloat(formData.totalPieces) <= 0) {
-        toast.error('Please enter valid total pieces');
         return false;
       }
       if (!formData.totalWeight || parseFloat(formData.totalWeight) <= 0) {
@@ -211,14 +290,22 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
           toast.error('Please select a shape for all entries');
           return false;
         }
-        if (shape.pieces <= 0) {
-          toast.error(`Please enter valid pieces for ${shape.shape}`);
-          return false;
-        }
         if (shape.weight <= 0) {
           toast.error(`Please enter valid weight for ${shape.shape}`);
           return false;
         }
+      }
+    }
+
+    // Validate dimension min <= max
+    if (formData.shapeType === 'single') {
+      const minL = parseFloat(formData.dimensions.min.length) || 0;
+      const maxL = parseFloat(formData.dimensions.max.length) || 0;
+      const minW = parseFloat(formData.dimensions.min.width) || 0;
+      const maxW = parseFloat(formData.dimensions.max.width) || 0;
+      if ((maxL > 0 && minL > maxL) || (maxW > 0 && minW > maxW)) {
+        toast.error('Dimension min values cannot be greater than max values');
+        return false;
       }
     }
 
@@ -236,7 +323,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       const derivedTotals =
         formData.shapeType === 'mix'
           ? {
-              totalPieces: formData.shapes.reduce((s, x) => s + x.pieces, 0),
+              totalPieces: formData.shapes.reduce((s, x) => s + (x.pieces || 0), 0),
               totalWeight: formData.shapes.reduce((s, x) => s + x.weight, 0),
             }
           : {
@@ -246,6 +333,8 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
 
       const submitData = {
         category: formData.category || null,
+        cuttingStyle: formData.cuttingStyle || '',
+        series: formData.series || null,
         shapeType: formData.shapeType,
 
         singleShape:
@@ -255,8 +344,16 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
           formData.shapeType === 'mix'
             ? formData.shapes.map(s => ({
                 shape: s.shape,
-                pieces: s.pieces,
+                pieces: s.pieces || 0,
                 weight: s.weight,
+                dimensionMin: {
+                  length: parseFloat(s.dimensionMin.length) || 0,
+                  width: parseFloat(s.dimensionMin.width) || 0
+                },
+                dimensionMax: {
+                  length: parseFloat(s.dimensionMax.length) || 0,
+                  width: parseFloat(s.dimensionMax.width) || 0
+                }
               }))
             : [],
 
@@ -267,9 +364,14 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
         saleCode: formData.saleCode,
 
         dimensions: {
-          length: parseFloat(formData.dimensions.length) || 0,
-          width: parseFloat(formData.dimensions.width) || 0,
-          height: parseFloat(formData.dimensions.height) || 0,
+          min: {
+            length: parseFloat(formData.dimensions.min.length) || 0,
+            width: parseFloat(formData.dimensions.min.width) || 0
+          },
+          max: {
+            length: parseFloat(formData.dimensions.max.length) || 0,
+            width: parseFloat(formData.dimensions.max.width) || 0
+          },
           unit: formData.dimensions.unit,
         },
 
@@ -294,7 +396,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
       } else {
         toast.error(response.message || 'Failed to save item');
       }
-    } catch (error: unknown) { // Fix: Use unknown instead of any
+    } catch (error: unknown) {
       console.error('Error saving item:', error);
       toast.error((error as Error)?.message || 'Failed to save item');
     } finally {
@@ -318,7 +420,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Serial Number Info (Read-only for edit, auto-generated for create) */}
+          {/* Serial Number Info */}
           {editItem && (
             <div className="p-3 bg-muted/50 rounded-md border">
               <Label className="text-sm font-medium">Serial Number</Label>
@@ -330,7 +432,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
           {!editItem && (
             <div className="p-3 bg-primary/5 rounded-md border border-primary/20">
               <p className="text-sm text-muted-foreground">
-                ℹ️ Serial number will be auto-generated based on the selected category
+                Serial number will be auto-generated: #[Category Code][Cutting Style][Sequence]
               </p>
             </div>
           )}
@@ -342,16 +444,76 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
               categories={categories}
               value={formData.category}
               onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-              onCreateCategory={async () => {
-                // Refresh will be handled by parent component
-              }}
+              onCreateCategory={async () => {}}
               placeholder="Select a category..."
             />
           </div>
 
+          {/* Cutting Style Selection */}
+          <div>
+            <Label htmlFor="cuttingStyle">Cutting Style</Label>
+            <select
+              id="cuttingStyle"
+              className="w-full px-3 py-2 border border-input rounded-md bg-background"
+              value={formData.cuttingStyle}
+              onChange={(e) => setFormData(prev => ({ ...prev, cuttingStyle: e.target.value as CuttingStyleCode | '' }))}
+              aria-label="Cutting style"
+            >
+              <option value="">Select cutting style...</option>
+              {Object.entries(CUTTING_STYLES).map(([code, name]) => (
+                <option key={code} value={code}>{code} - {name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Series Selection */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <Label htmlFor="series">Series</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={() => setShowNewSeries(!showNewSeries)}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                New Series
+              </Button>
+            </div>
+            {showNewSeries && (
+              <div className="flex gap-2 mb-2">
+                <Input
+                  value={newSeriesName}
+                  onChange={(e) => setNewSeriesName(e.target.value)}
+                  placeholder="Series name"
+                  className="flex-1"
+                />
+                <Button type="button" size="sm" onClick={handleCreateSeries}>
+                  Add
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setShowNewSeries(false); setNewSeriesName(''); }}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+            <select
+              id="series"
+              className="w-full px-3 py-2 border border-input rounded-md bg-background"
+              value={formData.series}
+              onChange={(e) => setFormData(prev => ({ ...prev, series: e.target.value }))}
+              aria-label="Series"
+            >
+              <option value="">No series</option>
+              {seriesList.map((s) => (
+                <option key={s._id} value={s._id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Shape Type Selection */}
           <div className="space-y-4">
-            <Label>Shape Type *</Label>
+            <Label>Lot Type *</Label>
             <RadioGroup
               value={formData.shapeType}
               onValueChange={handleShapeTypeChange}
@@ -360,13 +522,13 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="single" id="single" />
                 <Label htmlFor="single" className="font-normal cursor-pointer">
-                  Single Shape
+                  Single Shape Lot
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="mix" id="mix" />
                 <Label htmlFor="mix" className="font-normal cursor-pointer">
-                  Mix Shapes
+                  Mix Shape Lot
                 </Label>
               </div>
             </RadioGroup>
@@ -379,7 +541,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                     ? formData.singleShape
                       ? [{ shape: formData.singleShape, pieces: 1, weight: 0 }]
                       : []
-                    : formData.shapes
+                    : formData.shapes.map(s => ({ shape: s.shape, pieces: s.pieces, weight: s.weight }))
                 }
                 onChange={(shapes) => {
                   if (formData.shapeType === 'single') {
@@ -388,7 +550,16 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                       singleShape: shapes[0]?.shape || ''
                     }));
                   } else {
-                    setFormData(prev => ({ ...prev, shapes }));
+                    setFormData(prev => ({
+                      ...prev,
+                      shapes: shapes.map((s, i) => ({
+                        shape: s.shape,
+                        pieces: s.pieces,
+                        weight: s.weight,
+                        dimensionMin: prev.shapes[i]?.dimensionMin || emptyDimRange(),
+                        dimensionMax: prev.shapes[i]?.dimensionMax || emptyDimRange()
+                      }))
+                    }));
                   }
                 }}
                 isSingleShape={formData.shapeType === 'single'}
@@ -400,7 +571,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
           {formData.shapeType === 'single' && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="totalPieces">Total Pieces *</Label>
+                <Label htmlFor="totalPieces">Total Pieces</Label>
                 <Input
                   id="totalPieces"
                   type="number"
@@ -408,7 +579,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                   step="1"
                   value={formData.totalPieces}
                   onChange={(e) => setFormData(prev => ({ ...prev, totalPieces: e.target.value }))}
-                  placeholder="Enter total pieces"
+                  placeholder="Enter total pieces (optional)"
                 />
               </div>
               <div>
@@ -434,7 +605,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                 <div>
                   <span className="text-muted-foreground">Total Pieces: </span>
                   <span className="font-semibold">
-                    {formData.shapes.reduce((sum, s) => sum + s.pieces, 0)}
+                    {formData.shapes.reduce((sum, s) => sum + (s.pieces || 0), 0)}
                   </span>
                 </div>
                 <div>
@@ -444,6 +615,143 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
                   </span>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Dimension Range — Single Shape Lot */}
+          {formData.shapeType === 'single' && (
+            <div>
+              <Label>Dimension Range (optional)</Label>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Min (L x W)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Length"
+                      value={formData.dimensions.min.length}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        dimensions: {
+                          ...prev.dimensions,
+                          min: { ...prev.dimensions.min, length: e.target.value }
+                        }
+                      }))}
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Width"
+                      value={formData.dimensions.min.width}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        dimensions: {
+                          ...prev.dimensions,
+                          min: { ...prev.dimensions.min, width: e.target.value }
+                        }
+                      }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Max (L x W)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Length"
+                      value={formData.dimensions.max.length}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        dimensions: {
+                          ...prev.dimensions,
+                          max: { ...prev.dimensions.max, length: e.target.value }
+                        }
+                      }))}
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="Width"
+                      value={formData.dimensions.max.width}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        dimensions: {
+                          ...prev.dimensions,
+                          max: { ...prev.dimensions.max, width: e.target.value }
+                        }
+                      }))}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 w-24">
+                <select
+                  className="w-full px-2 py-1 border border-input rounded-md bg-background text-sm"
+                  value={formData.dimensions.unit}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    dimensions: { ...prev.dimensions, unit: e.target.value as 'mm' | 'cm' }
+                  }))}
+                  aria-label="Dimension unit"
+                >
+                  <option value="mm">mm</option>
+                  <option value="cm">cm</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Dimension Range — Mix Shape Lot (per shape) */}
+          {formData.shapeType === 'mix' && formData.shapes.length > 0 && (
+            <div className="space-y-4">
+              <Label>Dimension Range per Shape (optional)</Label>
+              {formData.shapes.map((shape, idx) => (
+                <div key={idx} className="p-3 border rounded-md space-y-2">
+                  <p className="text-sm font-medium">{shape.shape || `Shape ${idx + 1}`}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Min (L x W)</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Length"
+                          value={shape.dimensionMin.length}
+                          onChange={(e) => updateShapeDimension(idx, 'dimensionMin', 'length', e.target.value)}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Width"
+                          value={shape.dimensionMin.width}
+                          onChange={(e) => updateShapeDimension(idx, 'dimensionMin', 'width', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Max (L x W)</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Length"
+                          value={shape.dimensionMax.length}
+                          onChange={(e) => updateShapeDimension(idx, 'dimensionMax', 'length', e.target.value)}
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="Width"
+                          value={shape.dimensionMax.width}
+                          onChange={(e) => updateShapeDimension(idx, 'dimensionMax', 'width', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -472,55 +780,6 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
               <p className="text-xs text-muted-foreground mt-1">
                 Numeric = price/carat | Text = confidential
               </p>
-            </div>
-          </div>
-
-          {/* Dimensions */}
-          <div>
-            <Label>Dimensions (optional)</Label>
-            <div className="grid grid-cols-4 gap-2 mt-2">
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Length"
-                value={formData.dimensions.length}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  dimensions: { ...prev.dimensions, length: e.target.value }
-                }))}
-              />
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Width"
-                value={formData.dimensions.width}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  dimensions: { ...prev.dimensions, width: e.target.value }
-                }))}
-              />
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="Height"
-                value={formData.dimensions.height}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  dimensions: { ...prev.dimensions, height: e.target.value }
-                }))}
-              />
-              <select
-                className="px-3 py-2 border border-input rounded-md bg-background"
-                value={formData.dimensions.unit}
-                onChange={(e) => setFormData(prev => ({
-                  ...prev,
-                  dimensions: { ...prev.dimensions, unit: e.target.value as 'mm' | 'cm' }
-                }))}
-                aria-label="Dimension unit" // Fix: Add accessible name
-              >
-                <option value="mm">mm</option>
-                <option value="cm">cm</option>
-              </select>
             </div>
           </div>
 
@@ -554,7 +813,7 @@ export const AddInventoryDialog: React.FC<AddInventoryDialogProps> = ({
               className="w-full px-3 py-2 border border-input rounded-md bg-background"
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-              aria-label="Item status" // Fix: Add accessible name
+              aria-label="Item status"
             >
               <option value="in_stock">In Stock</option>
               <option value="pending">Pending</option>

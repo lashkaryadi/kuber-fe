@@ -1,24 +1,27 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search,
-  Filter,
   Plus,
   Download,
   Upload,
-  ShoppingCart,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InventoryTable } from "@/components/inventory/InventoryTable";
 import { AddInventoryDialog } from "@/components/inventory/AddInventoryDialog";
-import { InventoryItem } from "@/types/inventory"; // Removed ShapeName (not exported); define locally if needed
+import { InventoryItem, CUTTING_STYLES, CuttingStyleCode } from "@/types/inventory";
 import { toast } from "sonner";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Pagination } from "@/components/common/Pagination";
 import api from "@/services/api";
 
-// Define ShapeName locally if not exported from types
 type ShapeName = string;
+
+interface SeriesItem {
+  _id: string;
+  name: string;
+}
 
 export const Inventory = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -27,43 +30,42 @@ export const Inventory = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [shapeFilter, setShapeFilter] = useState<string>("ALL");
-  const [categories, setCategories] = useState<{ _id: string; name: string }[]>(
-    [],
-  ); // Fix: Specify type instead of any
-  const [availableShapes, setAvailableShapes] = useState<ShapeName[]>([]); // NEW
+  const [cuttingStyleFilter, setCuttingStyleFilter] = useState("ALL");
+  const [seriesFilter, setSeriesFilter] = useState("ALL");
+  const [lotTypeFilter, setLotTypeFilter] = useState("ALL");
+  const [minWeight, setMinWeight] = useState("");
+  const [maxWeight, setMaxWeight] = useState("");
+  const [minPieces, setMinPieces] = useState("");
+  const [maxPieces, setMaxPieces] = useState("");
+  const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
+  const [availableShapes, setAvailableShapes] = useState<ShapeName[]>([]);
+  const [seriesList, setSeriesList] = useState<SeriesItem[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch categories
+  // Fetch categories, shapes, series on mount
   useEffect(() => {
     fetchCategories();
-  }, []);
-
-  // Fetch available shapes (NEW)
-  useEffect(() => {
     fetchAvailableShapes();
+    fetchSeries();
   }, []);
-
-  // Fetch inventory
 
   const fetchCategories = async () => {
     try {
       const response = await api.getCategories();
-
       if (response.success) {
         setCategories(Array.isArray(response.data) ? response.data : []);
-      } else {
-        toast.error("Failed to fetch categories");
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
-      toast.error("Failed to fetch categories");
     }
   };
 
-  // NEW: Fetch available shapes
   const fetchAvailableShapes = async () => {
     try {
       const response = await api.getInventoryShapes();
@@ -78,18 +80,36 @@ export const Inventory = () => {
     }
   };
 
+  const fetchSeries = async () => {
+    try {
+      const response = await api.getSeries({ limit: 100 });
+      if (response.success) {
+        setSeriesList(response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching series:", error);
+    }
+  };
+
   const fetchInventory = useCallback(async () => {
     setLoading(true);
     try {
-      const params = {
+      const params: Record<string, any> = {
         page,
         limit: 10,
+        sortBy,
+        sortOrder,
         ...(searchTerm && { search: searchTerm }),
-        ...(categoryFilter !== "ALL" && {
-          category: categoryFilter,
-        }),
+        ...(categoryFilter !== "ALL" && { category: categoryFilter }),
         ...(statusFilter !== "All Status" && { status: statusFilter }),
         ...(shapeFilter !== "ALL" && { shape: shapeFilter }),
+        ...(cuttingStyleFilter !== "ALL" && { cuttingStyle: cuttingStyleFilter }),
+        ...(seriesFilter !== "ALL" && { series: seriesFilter }),
+        ...(lotTypeFilter !== "ALL" && { lotType: lotTypeFilter }),
+        ...(minWeight && { minWeight }),
+        ...(maxWeight && { maxWeight }),
+        ...(minPieces && { minPieces }),
+        ...(maxPieces && { maxPieces }),
       };
 
       const response = await api.getInventory(params);
@@ -101,17 +121,62 @@ export const Inventory = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, searchTerm, categoryFilter, statusFilter, shapeFilter]);
+  }, [
+    page, searchTerm, categoryFilter, statusFilter, shapeFilter,
+    cuttingStyleFilter, seriesFilter, lotTypeFilter,
+    minWeight, maxWeight, minPieces, maxPieces,
+    sortBy, sortOrder
+  ]);
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [categoryFilter, statusFilter, shapeFilter, searchTerm]);
+  }, [
+    categoryFilter, statusFilter, shapeFilter, searchTerm,
+    cuttingStyleFilter, seriesFilter, lotTypeFilter,
+    minWeight, maxWeight, minPieces, maxPieces
+  ]);
 
   // Fetch inventory
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
+
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      if (sortOrder === 'asc') {
+        setSortOrder('desc');
+      } else {
+        // Third click: reset sort
+        setSortBy('createdAt');
+        setSortOrder('desc');
+      }
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setCategoryFilter("ALL");
+    setStatusFilter("All Status");
+    setShapeFilter("ALL");
+    setCuttingStyleFilter("ALL");
+    setSeriesFilter("ALL");
+    setLotTypeFilter("ALL");
+    setMinWeight("");
+    setMaxWeight("");
+    setMinPieces("");
+    setMaxPieces("");
+    setSortBy("createdAt");
+    setSortOrder("desc");
+  };
+
+  const hasActiveFilters =
+    searchTerm || categoryFilter !== "ALL" || statusFilter !== "All Status" ||
+    shapeFilter !== "ALL" || cuttingStyleFilter !== "ALL" || seriesFilter !== "ALL" ||
+    lotTypeFilter !== "ALL" || minWeight || maxWeight || minPieces || maxPieces;
 
   const handleExport = async () => {
     try {
@@ -141,7 +206,6 @@ export const Inventory = () => {
       toast.error("Failed to import CSV");
     }
 
-    // Reset input
     if (csvInputRef.current) {
       csvInputRef.current.value = '';
     }
@@ -189,78 +253,197 @@ export const Inventory = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
+        {/* Search Bar */}
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Search inventory..."
+              placeholder="Search across all fields (serial, code, category, shape, series, cutting style...)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
             />
           </div>
-
-          {/* Category Filter */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background"
-            aria-label="Filter by category" // Fix: Add accessible name
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
           >
-            <option key="ALL" value="ALL">All Categories</option>
-            {categories.map((cat) => {
-              const id = (cat._id || cat._id)?.toString();
-
-              if (!id) return null; // 🛡 safety
-
-              return (
-                <option key={id} value={id}>
-                  {cat.name}
-                </option>
-              );
-            })}
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background"
-            aria-label="Filter by status" // Fix: Add accessible name
-          >
-            <option value="All Status">All Status</option>
-            <option value="In Stock">In Stock</option>
-            <option value="Pending">Pending</option>
-            <option value="Partially Sold">Partially Sold</option>
-            <option value="Sold">Sold</option>
-          </select>
-
-          {/* NEW: Shape Filter */}
-          <select
-            value={shapeFilter}
-            onChange={(e) => setShapeFilter(e.target.value)}
-            className="px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background"
-            aria-label="Filter by shape" // Fix: Add accessible name
-          >
-            <option key="ALL_SHAPES" value="ALL">All Shapes</option>
-            {Array.isArray(availableShapes) && availableShapes.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+            {showFilters ? 'Hide Filters' : 'Show Filters'}
+          </Button>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              className="text-red-600 hover:text-red-700"
+            >
+              <RotateCcw className="w-4 h-4 mr-1" />
+              Reset
+            </Button>
+          )}
         </div>
+
+        {/* Filter Panel */}
+        {showFilters && (
+          <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
+            {/* Dropdown Filters */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* Category Filter */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Category</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm"
+                  aria-label="Filter by category"
+                >
+                  <option value="ALL">All Categories</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Shape Filter */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Shape</label>
+                <select
+                  value={shapeFilter}
+                  onChange={(e) => setShapeFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm"
+                  aria-label="Filter by shape"
+                >
+                  <option value="ALL">All Shapes</option>
+                  {availableShapes.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Cutting Style Filter */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Cutting Style</label>
+                <select
+                  value={cuttingStyleFilter}
+                  onChange={(e) => setCuttingStyleFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm"
+                  aria-label="Filter by cutting style"
+                >
+                  <option value="ALL">All Styles</option>
+                  {Object.entries(CUTTING_STYLES).map(([code, name]) => (
+                    <option key={code} value={code}>{code} - {name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Series Filter */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Series</label>
+                <select
+                  value={seriesFilter}
+                  onChange={(e) => setSeriesFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm"
+                  aria-label="Filter by series"
+                >
+                  <option value="ALL">All Series</option>
+                  {seriesList.map((s) => (
+                    <option key={s._id} value={s._id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Lot Type Filter */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Lot Type</label>
+                <select
+                  value={lotTypeFilter}
+                  onChange={(e) => setLotTypeFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm"
+                  aria-label="Filter by lot type"
+                >
+                  <option value="ALL">All Types</option>
+                  <option value="single">Single</option>
+                  <option value="mix">Mix</option>
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm"
+                  aria-label="Filter by status"
+                >
+                  <option value="All Status">All Status</option>
+                  <option value="In Stock">In Stock</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Partially Sold">Partially Sold</option>
+                  <option value="Sold">Sold</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Range Filters */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Min Weight</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Min"
+                  value={minWeight}
+                  onChange={(e) => setMinWeight(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Max Weight</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Max"
+                  value={maxWeight}
+                  onChange={(e) => setMaxWeight(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Min Pieces</label>
+                <Input
+                  type="number"
+                  step="1"
+                  placeholder="Min"
+                  value={minPieces}
+                  onChange={(e) => setMinPieces(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Max Pieces</label>
+                <Input
+                  type="number"
+                  step="1"
+                  placeholder="Max"
+                  value={maxPieces}
+                  onChange={(e) => setMaxPieces(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Loading */}
         {loading && (
           <div className="py-10 text-center text-muted-foreground">
-            Loading inventory…
+            Loading inventory...
           </div>
         )}
 
-        {/* Error - This would need to be handled differently in the actual implementation */}
+        {/* Empty state */}
         {!loading && inventory.length === 0 && (
           <div className="text-center text-muted-foreground mt-10">
             No inventory items match your filters
@@ -272,8 +455,15 @@ export const Inventory = () => {
           <InventoryTable
             inventory={inventory}
             loading={loading}
-            onRefresh={fetchInventory}
+            onRefresh={() => {
+              fetchInventory();
+              fetchAvailableShapes();
+              fetchSeries();
+            }}
             categories={categories}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSort}
           />
         )}
 
@@ -292,8 +482,9 @@ export const Inventory = () => {
           onOpenChange={setIsAddDialogOpen}
           onSuccess={() => {
             fetchInventory();
-            fetchCategories(); // Refresh categories list
-            fetchAvailableShapes(); // Refresh shapes list
+            fetchCategories();
+            fetchAvailableShapes();
+            fetchSeries();
           }}
           categories={categories}
         />

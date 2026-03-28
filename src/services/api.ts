@@ -408,13 +408,12 @@ const exportCategoriesExcel = async () => {
 const getShapes = async () => {
   try {
     const response = await apiClient.get("/api/shapes");
-    // Backend returns: { success: true, data: [{ _id, name }, ...] }
     const shapesData = response.data?.data || response.data || [];
     const shapesList = Array.isArray(shapesData) ? shapesData : [];
-    
+
     return {
       success: true,
-      data: shapesList.filter((s: any) => s && s._id && s.name) // Filter out invalid entries
+      data: shapesList.filter((s: any) => s && s._id && s.name)
     };
   } catch (error) {
     console.error("Error fetching shapes:", error);
@@ -449,15 +448,91 @@ const getInventoryShapes = async () => {
           .map((shape: any) => shape.name || ''),
       };
     }
-    return {
-      success: true,
-      data: [],
-    };
+    return { success: true, data: [] };
   } catch (error) {
     console.error("Error fetching inventory shapes:", error);
+    return { success: false, data: [] };
+  }
+};
+
+/* ============================
+   SERIES
+============================ */
+const getSeries = async (params?: { search?: string; page?: number; limit?: number }) => {
+  try {
+    const response = await apiClient.get("/api/series", { params });
+    return {
+      success: true,
+      data: Array.isArray(response.data?.data) ? response.data.data : [],
+      meta: response.data?.meta || null
+    };
+  } catch (error) {
+    console.error("Error fetching series:", error);
+    return { success: false, data: [], meta: null };
+  }
+};
+
+const createSeriesItem = async (payload: { name: string }) => {
+  try {
+    const response = await apiClient.post("/api/series", payload);
+    return { success: true, data: response.data?.data || response.data };
+  } catch (error: any) {
+    console.error("Error creating series:", error);
     return {
       success: false,
-      data: [],
+      message: error?.response?.data?.message || error.message || "Failed to create series"
+    };
+  }
+};
+
+const updateSeriesItem = async (id: string, payload: { name: string }) => {
+  try {
+    const response = await apiClient.put(`/api/series/${id}`, payload);
+    return { success: true, data: response.data?.data || response.data };
+  } catch (error: any) {
+    console.error("Error updating series:", error);
+    return {
+      success: false,
+      message: error?.response?.data?.message || error.message || "Failed to update series"
+    };
+  }
+};
+
+const deleteSeriesItem = async (id: string) => {
+  try {
+    await apiClient.delete(`/api/series/${id}`);
+    return { success: true, message: "Series deleted successfully" };
+  } catch (error: any) {
+    console.error("Error deleting series:", error);
+    return {
+      success: false,
+      message: error?.response?.data?.message || error.message || "Failed to delete series"
+    };
+  }
+};
+
+/* ============================
+   MERGE PACKETS
+============================ */
+const getMergeCandidates = async (sourceId: string) => {
+  try {
+    const response = await apiClient.get(`/api/inventory/merge-candidates/${sourceId}`);
+    return { success: true, data: response.data?.data || [] };
+  } catch (error) {
+    console.error("Error fetching merge candidates:", error);
+    return { success: false, data: [] };
+  }
+};
+
+const mergePackets = async (sourceId: string, targetId: string) => {
+  try {
+    const response = await apiClient.post("/api/inventory/merge", { sourceId, targetId });
+    return { success: true, data: response.data?.data, message: response.data?.message };
+  } catch (error: any) {
+    console.error("Error merging packets:", error);
+    return {
+      success: false,
+      message: error?.response?.data?.message || error.message || "Failed to merge packets"
     };
   }
 };
@@ -1088,6 +1163,16 @@ const api = {
   getShapes,
   createShape,
   getInventoryShapes,
+
+  // Series
+  getSeries,
+  createSeriesItem,
+  updateSeriesItem,
+  deleteSeriesItem,
+
+  // Merge
+  getMergeCandidates,
+  mergePackets,
 
   // Uploads
   uploadImage,
